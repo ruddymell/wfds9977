@@ -1,0 +1,93 @@
+&HEAD CHID='BF_Linear_mlr05', TITLE='Simple flat terrain case with boundary fuel' /
+
+&MISC U0=0 / inital wind field 
+&TIME T_END=150 / 
+
+cRADI RADIATIVE_FRACTION=0.0 /
+
+- 1 mesh
+cMESH IJK=100,20,50, XB=0,50,-25,25,0,25 /
+
+- Computational grid
+&MESH IJK=100,20,50, XB=0,50,-25,-15,0,25 /
+&MESH IJK=100,20,50, XB=0,50,-15, -5,0,25 /
+&MESH IJK=100,20,50, XB=0,50, -5,  5,0,25 /
+&MESH IJK=100,20,50, XB=0,50,  5, 15,0,25 /
+&MESH IJK=100,20,50, XB=0,50, 15, 25,0,25 /
+
+&MISC STRATIFICATION=.FALSE./
+
+&REAC ID='WOOD'
+      FUEL='WOOD'
+      FYI='Ritchie, et al., 5th IAFSS, C_3.4 H_6.2 O_2.5, dHc = 15MW/kg'
+      SOOT_YIELD = 0.02
+      O          = 2.5
+      C          = 3.4
+      H          = 6.2
+      HEAT_OF_COMBUSTION = 17700 /
+
+&SPEC ID='WATER VAPOR' /
+
+- Australian grass based on experimental case F19 (Mell et al., 2007, IJWF)
+
+&SURF ID        = 'GRASS'
+      VEGETATION = .TRUE.
+      VEG_DRAG_COEFFICIENT= 0.125
+      VEG_LOAD     = 0.313
+      VEG_HEIGHT   = 1.0
+      VEG_MOISTURE = 0.06
+      VEG_SV  = 12240
+      VEG_CHAR_FRACTION  = 0.2
+      VEG_DENSITY= 512
+      EMISSIVITY = 0.99 
+      VEG_H_PYR = 418
+      VEG_HCONV_CYLRE = .TRUE.
+      VEGETATION_HCONV_CYLLAM = .FALSE.
+      VEG_DEGRADATION = 'LINEAR'
+      FIRELINE_MLR_MAX = 0.05
+      RGB        = 122,117,48 /
+
+- Ignitor fire. Delayed for 10 s to allow wind to sweep through domain
+&SURF ID='LINEFIRE',HRRPUA=1000,RAMP_Q='RAMPIGN',RGB=255,0,0 /
+&RAMP ID='RAMPIGN',T= 0,F=0 /
+&RAMP ID='RAMPIGN',T=20,F=0 /
+&RAMP ID='RAMPIGN',T=22,F=1 /
+&RAMP ID='RAMPIGN',T=32,F=1 /
+&RAMP ID='RAMPIGN',T=35,F=0 /
+&VENT XB=4,5,-10,10,0,0,SURF_ID='LINEFIRE' /
+
+- Boundary conditions
+&SURF ID='WIND',VEL=-3 /
+&VENT MB = XMIN, SURF_ID = 'WIND' /
+&VENT MB = XMAX, SURF_ID = 'OPEN' /
+&VENT MB = YMIN, SURF_ID = 'OPEN' /
+&VENT MB = YMAX, SURF_ID = 'OPEN' /
+&VENT MB = ZMAX, SURF_ID = 'OPEN' /
+
+- Grass on flat terrain
+&VENT XB=5,45,-20,20,0,0,SURF_ID='GRASS' /
+
+- Outputs
+&DUMP DT_SLCF=0.1,DT_BNDF=0.1,DT_PL3D=20 /
+
+-- Slice files
+&SLCF PBY=0,QUANTITY='TEMPERATURE',VECTOR=.TRUE. /
+&SLCF PBY=0,QUANTITY='MASS FRACTION',SPEC_ID='WOOD' /
+&SLCF PBZ=2,QUANTITY='TEMPERATURE',VECTOR=.TRUE. /
+
+-- Isosurface (20 kW/m^3) of heat release rate per unit volume
+&ISOF QUANTITY='HRRPUV',VALUE(1)=20 /
+
+-- Boundary files
+&BNDF QUANTITY='WALL TEMPERATURE'/
+&BNDF QUANTITY='WALL THICKNESS'/
+&BNDF QUANTITY='BURNING RATE'/
+&BNDF QUANTITY='RADIATIVE HEAT FLUX'/
+&BNDF QUANTITY='CONVECTIVE HEAT FLUX'/
+
+-- Device files (gas phase point measurements)
+&DEVC ID='U_0x0y2x', XYZ=10,0,2,QUANTITY='U-VELOCITY' / at x,y,z=10m,0m,2m 
+&DEVC ID='qr_0x0y2x',XYZ=10,0,2,QUANTITY='RADIATIVE HEAT FLUX GAS',ORIENTATION=-1,0,0 /  
+
+- End of file
+&TAIL /
