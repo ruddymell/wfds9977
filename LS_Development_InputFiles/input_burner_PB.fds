@@ -1,0 +1,75 @@
+&HEAD CHID='burner_PB', TITLE='Implementation of a static burner with thermal elements' /
+&MISC TERRAIN_CASE=.FALSE.,
+      VEG_LEVEL_SET_COUPLED=.FALSE.,
+      VEG_LEVEL_SET_SURFACE_HEATFLUX=.FALSE.,
+      VEG_LEVEL_SET_THERMAL_ELEMENTS=.FALSE. /
+,PROJECTION=.TRUE. 
+
+&TIME T_END=90 / 
+cCSVF UVWFILE='simple_grasshill_windonly_uvw_t001_m001.csv' / file with initial wind field
+cCSVF UVWFILE='simple_grasshill_windonly_uvw_t001_m002.csv' / 
+cCSVF UVWFILE='simple_grasshill_windonly_uvw_t001_m003.csv' / 
+cCSVF UVWFILE='simple_grasshill_windonly_uvw_t001_m004.csv' / 
+
+&DUMP DT_SLCF=1,DT_ISOF=0.1,DT_BNDF=1,SMOKE3D=.TRUE. /  
+
+- 1 mesh
+cMESH IJK=50,50,25, XB=0,50,-25,25,0,25 /
+
+- 2 meshes
+cMESH IJK=25,50,25, XB= 0,25,-25,25,0,25 /
+cMESH IJK=25,50,25, XB=25,50,-25,25,0,25 /
+
+- 2 unequal meshes
+cMESH IJK=40,50,25, XB= 0,40,-25,25,0,25 /
+cMESH IJK=10,50,25, XB=40,50,-25,25,0,25 /
+
+- 4 unequal meshes
+cMESH IJK=22,25,25, XB= 0,22,-25, 0,0,25 /
+cMESH IJK=22,25,25, XB= 0,22,  0,25,0,25 /
+cMESH IJK=28,25,25, XB=22,50,-25, 0,0,25 /
+cMESH IJK=28,25,25, XB=22,50,  0,25,0,25 /
+
+- 4 meshes equal checkerboards
+&MULT ID='lower',DX=25,DY=25,DZ=25,I_LOWER=0,I_UPPER=1,J_LOWER=0,J_UPPER=1,K_LOWER=0,K_UPPER=0 /
+&MESH IJK=25,25,25, XB=-25,0,-25,0,0,25,MULT_ID='lower' / 
+
+&REAC ID='WOOD'
+      FUEL='WOOD'
+      FYI='Ritchie, et al., 5th IAFSS, C_3.4 H_6.2 O_2.5, dHc = 15MW/kg'
+      SOOT_YIELD = 0.02
+      O          = 2.5
+      C          = 3.4
+      H          = 6.2
+      HEAT_OF_COMBUSTION = 17700. /
+
+- burner
+&SURF ID = 'burner'
+            HRRPUA = 500
+            RGB=122,117,48 /
+&VENT XB=-5,5,-5,5,0,0,SURF_ID='burner' /
+
+-- Boundary conditions
+- This wind inlet condition matches the condition used for the wind-only simulation that created
+  the initial wind field (i.e., the simulation that created the file specified in the CSFV namelist)
+&SURF ID='WIND', PROFILE='ATMOSPHERIC',Z0=2,VEL=-5,PLE=0.143, RAMP_V='wind' /
+&RAMP ID='wind',F=1,T=0 /
+&RAMP ID='wind',F=1,T=1 /
+&VENT MB = XMIN, SURF_ID = 'OPEN' /
+&VENT MB = XMAX, SURF_ID = 'OPEN' /
+&VENT MB = YMIN, SURF_ID = 'OPEN' /
+&VENT MB = YMAX, SURF_ID = 'OPEN' /
+&VENT MB = ZMAX, SURF_ID = 'OPEN' /
+
+-- Outputs
+&SLCF PBY=0,QUANTITY='MASS FRACTION',SPEC_ID='WOOD' /
+&SLCF PBY=0,QUANTITY='HRRPUV' /
+&SLCF PBY=0,QUANTITY='VELOCITY',VECTOR=.TRUE. /
+&SLCF PBY=0,QUANTITY='TEMPERATURE' /
+&SLCF PBZ=1,AGL_SLICE=2,QUANTITY='VELOCITY',VECTOR=.TRUE. /
+&SLCF PBZ=1,AGL_SLICE=6,QUANTITY='VELOCITY',VECTOR=.TRUE. /
+&BNDF QUANTITY='WALL TEMPERATURE'/
+&BNDF QUANTITY='CONVECTIVE HEAT FLUX'/
+&ISOF QUANTITY='TEMPERATURE',VALUE=150. /
+
+&TAIL /

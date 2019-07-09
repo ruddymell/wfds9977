@@ -1,0 +1,142 @@
+&HEAD CHID='grasshill_SHF_LS4', TITLE='Level Set coupled to time dependent wind with qc for fire-atmos coupling Simple Hill case' /
+&MISC TERRAIN_CASE=.FALSE.
+      VEG_LEVEL_SET_COUPLED=.TRUE.
+      VEG_LEVEL_SET_SURFACE_HEATFLUX=.TRUE.
+      VEG_LEVEL_SET_THERMAL_ELEMENTS=.FALSE.
+      PROJECTION=.TRUE. /
+&TIME T_END=150 / 
+&CSVF UVWFILE='simple_grasshill_windonly_uvw_t001_m001.csv' / file with initial wind field
+&CSVF UVWFILE='simple_grasshill_windonly_uvw_t001_m002.csv' / 
+&CSVF UVWFILE='simple_grasshill_windonly_uvw_t001_m003.csv' / 
+&CSVF UVWFILE='simple_grasshill_windonly_uvw_t001_m004.csv' / 
+
+&DUMP DT_SLCF=1,DT_ISOF=0.1,DT_BNDF=1,SMOKE3D=.FALSE. /  
+
+- 1 mesh
+cMESH IJK=50,50,25, XB=0,50,-25,25,0,25 /
+
+- 2 meshes
+cMESH IJK=25,50,25, XB= 0,25,-25,25,0,25 /
+cMESH IJK=25,50,25, XB=25,50,-25,25,0,25 /
+
+- 2 unequal meshes
+cMESH IJK=40,50,25, XB= 0,40,-25,25,0,25 /
+cMESH IJK=10,50,25, XB=40,50,-25,25,0,25 /
+
+- 4 unequal meshes
+cMESH IJK=22,25,25, XB= 0,22,-25, 0,0,25 /
+cMESH IJK=22,25,25, XB= 0,22,  0,25,0,25 /
+cMESH IJK=28,25,25, XB=22,50,-25, 0,0,25 /
+cMESH IJK=28,25,25, XB=22,50,  0,25,0,25 /
+
+- 4 meshes equal checkerboards
+&MULT ID='lower',DX=25,DY=25,DZ=25,I_LOWER=0,I_UPPER=1,J_LOWER=0,J_UPPER=1,K_LOWER=0,K_UPPER=0 /
+&MESH IJK=25,25,25, XB=0,25,-25,0,0,25,MULT_ID='lower' / 
+
+-- Unlike the LS3 case the drag due to the vegetation is not accounted for here (VEGETATION=.FALSE.). The
+   code needs some work before this can be done.
+   The paramenter VEG_LSET_QCON (kW/m^2) defines the heat input into the gas phase as a heat flux
+   boundary condtion where the level set locates the fireline. This was determined from the
+   physics-based simulation (for AU grassland fires it is about 630 kW/m^2
+
+- Not "Farsite"
+cSURF ID = 'GRASS'
+            VEG_LEVEL_SET_SPREAD = .TRUE.
+            VEG_LSET_QCON    = 700.
+            VEG_LSET_ROS_HEAD  = 0.30
+            VEG_LSET_ROS_FLANK = 0.05
+            VEG_LSET_ROS_BACK  = 0.1
+            VEG_LSET_WIND_EXP = 1.0
+            RGB=122,117,48 /
+
+- "Farsite"
+
+&SURF ID = 'GRASS'
+            VEG_LEVEL_SET_SPREAD = .TRUE.
+            VEG_LSET_SURFACE_FIRE_HEAD_ROS_MODEL= 'ROTHERMEL'
+            VEG_LSET_ROTH_ZEROWINDSLOPE_ROS = 0.02
+            VEG_LSET_ELLIPSE = .TRUE.
+            VEG_LSET_BETA    = 0.0012
+            VEG_LSET_SIGMA   = 11400
+            VEG_LSET_SURF_HEIGHT = 0.51
+            VEG_LSET_SURF_LOAD   = 0.313
+            VEG_LSET_HEAT_OF_COMBUSTION = 18000.
+            VEG_LSET_PHIDEPTH = 0.5
+            RGB=122,117,48 /
+
+&SURF ID = 'NO BURN GRASS'
+            VEG_LEVEL_SET_SPREAD = .TRUE.
+            VEG_NO_BURN  = .TRUE.
+            VEG_LSET_ROS_HEAD  = 0
+            VEG_LSET_ROS_FLANK = 0
+            VEG_LSET_ROS_BACK  = 0
+            COLOR = 'BLACK' /
+
+-- Ignitor fire
+&SURF ID = 'IGN FIRE0',VEG_LSET_IGNITE_TIME =0,COLOR = 'RED' /
+&VENT XB=5,6,-15,15,0,0,SURF_ID='IGN FIRE0' / upwind of hill
+
+- Hill and grass on slope
+-- Grass on flat upwind of hill
+&VENT XB=6,20,-20,20,0,0,SURF_ID='GRASS' /
+
+-- upslope
+&OBST XB=20,21,-20,20, 0, 1,SURF_ID='GRASS' /
+&OBST XB=21,22,-20,20, 0, 2,SURF_ID='GRASS' /
+&OBST XB=22,23,-20,20, 0, 3,SURF_ID='GRASS' /
+&OBST XB=23,24,-20,20, 0, 4,SURF_ID='GRASS' /
+
+&OBST XB=20,21,-25,-20, 0, 1 / no grass portion of hill
+&OBST XB=21,22,-25,-20, 0, 2 /
+&OBST XB=22,23,-25,-20, 0, 3 /
+&OBST XB=23,24,-25,-20, 0, 4 /
+&OBST XB=20,21, 20, 25, 0, 1 / 
+&OBST XB=21,22, 20, 25, 0, 2 /
+&OBST XB=22,23, 20, 25, 0, 3 /
+&OBST XB=23,24, 20, 25, 0, 4 /
+
+-- flat top
+&OBST XB=24,28,-20,20, 0, 4,SURF_ID='GRASS' /
+cOBST XB=24,28,-20,20, 0, 4,SURF_ID='IGN FIRE' /
+
+cOBST XB=24,28,-5,5, 0, 6,NOTERRAIN=.TRUE. / house
+&OBST XB=24,28,-25,-20, 0, 4 /
+&OBST XB=24,28, 20, 25, 0, 4 /
+
+-- downslope
+&OBST XB=28,29,-20,20, 0, 3,SURF_ID='GRASS'  /
+&OBST XB=29,30,-20,20, 0, 2,SURF_ID='GRASS'  /
+&OBST XB=30,31,-20,20, 0, 1,SURF_ID='GRASS'  /
+
+&OBST XB=28,29,-25,-20, 0, 3  /
+&OBST XB=29,30,-25,-20, 0, 2  /
+&OBST XB=30,31,-25,-20, 0, 1  /
+&OBST XB=28,29, 20, 25, 0, 3  /
+&OBST XB=29,30, 20, 25, 0, 2  /
+&OBST XB=30,31, 20, 25, 0, 1  /
+
+-- grass downwind of hill
+&VENT XB=31,45,-20,20, 0, 0,SURF_ID='GRASS'  /
+
+-- Boundary conditions
+- This wind inlet condition matches the condition used for the wind-only simulation that created
+  the initial wind field (i.e., the simulation that created the file specified in the CSFV namelist)
+&SURF ID='WIND', PROFILE='ATMOSPHERIC',Z0=2,VEL=-5,PLE=0.143, RAMP_V='wind' /
+&RAMP ID='wind',F=1,T=0 /
+&RAMP ID='wind',F=1,T=1 /
+&VENT MB = XMIN, SURF_ID = 'WIND' /
+&VENT MB = XMAX, SURF_ID = 'OPEN' /
+&VENT MB = YMIN, SURF_ID = 'OPEN' /
+&VENT MB = YMAX, SURF_ID = 'OPEN' /
+&VENT MB = ZMAX, SURF_ID = 'OPEN' /
+
+-- Outputs
+&SLCF PBY=0,QUANTITY='VELOCITY',VECTOR=.TRUE. /
+&SLCF PBY=0,QUANTITY='TEMPERATURE' /
+&SLCF PBZ=1,AGL_SLICE=0.1,QUANTITY='VELOCITY',VECTOR=.TRUE. /
+&SLCF PBZ=1,AGL_SLICE=6,QUANTITY='VELOCITY',VECTOR=.TRUE. /
+&BNDF QUANTITY='WALL TEMPERATURE'/
+&BNDF QUANTITY='CONVECTIVE HEAT FLUX'/
+&ISOF QUANTITY='TEMPERATURE',VALUE=150. /
+
+&TAIL /
