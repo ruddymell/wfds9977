@@ -1365,17 +1365,14 @@ CALL POINT_TO_MESH(NM)
 
 IF (VEG_LEVEL_SET_COUPLED .OR. VEG_LEVEL_SET_UNCOUPLED) RETURN
 
-TMP_BOIL     = 373._EB
-TMP_CHAR_MAX = 1300._EB
-CP_ASH       = 800._EB !J/kg/K specific heat of ash
-CP_H2O       = 4190._EB !J/kg/K specific heat of water
-!H_VAP_H2O    = 2259._EB*1000._EB !J/kg/K heat of vaporization of water
-!H_PYR_VEG = SF !J/kg Morvan
-!H_PYR_VEG = 2640000._EB !J/kg Drysdale,Doug Fir
-!RH_PYR_VEG = 1._EB/H_PYR_VEG
-DT_BC     = T - VEG_CLOCK_BC
-!DT_BC     = MESHES(NM)%DT
-RDT_BC    = 1.0_EB/DT_BC
+TMP_BOIL        = 373._EB
+TMP_CHAR_MAX    = 1300._EB
+CP_ASH          = 800._EB !J/kg/K specific heat of ash
+CP_H2O          = 4190._EB !J/kg/K specific heat of water
+DT_BC           = T - VEG_CLOCK_BC
+RDT_BC          = 1.0_EB/DT_BC
+VEG_DRAG        = 0.0_EB
+VEG_DRAG(:,:,0) = -1.0_EB !default value when no veg is present
 
 IF (N_REACTIONS>0) I_FUEL = REACTION(1)%FUEL_SMIX_INDEX
 
@@ -1401,7 +1398,11 @@ VEG_WALL_CELL_LOOP: DO IW=1,N_EXTERNAL_WALL_CELLS+N_INTERNAL_WALL_CELLS
   KKG = WC%KKG
   TMP_G = TMP(IIG,JJG,KKG)
   IF(SF%VEG_NO_BURN .OR. T <= DT_BC) WC%VEG_HEIGHT = SF%VEG_HEIGHT
-! VEG_DRAG(IIG,JJG) = SF%VEG_DRAG_INI*(SF%VEG_CHARFRAC + CHAR_FCTR*WC%VEG_HEIGHT/SF%VEG_HEIGHT)
+  VEG_DRAG(IIG,JJG,0) = REAL(KKG,EB) !for terrain location in drag calc in velo.f90
+
+!Simple Drag implementation, assumes veg height is <= grid cell height
+ VEG_DRAG(IIG,JJG,1) = SF%VEG_DRAG_INI*(SF%VEG_CHAR_FRACTION + CHAR_FCTR*WC%VEG_HEIGHT/SF%VEG_HEIGHT)
+ VEG_DRAG(IIG,JJG,1) = VEG_DRAG(IIG,JJG,1)*SF%VEG_HEIGHT/(Z(1)-Z(0))
 
 !Determine drag constant as a function of veg height (implemented in velo.f90)
 ! VEG_DRAG(IIG,JJG,:) = 0.0_EB
@@ -1429,43 +1430,41 @@ VEG_WALL_CELL_LOOP: DO IW=1,N_EXTERNAL_WALL_CELLS+N_INTERNAL_WALL_CELLS
 !-- Drag varires with height above the terrain according to the fraction of the grid cell occupied by veg
 !   Implemented in velo.f90 (KKG is the grid cell in the gas phase bordering the terrain).
 
-  VEG_DRAG(IIG,JJG,:) = 0.0_EB
-  IF (WC%VEG_HEIGHT > 0.0_EB) THEN
+! VEG_DRAG(IIG,JJG,:) = 0.0_EB
+! IF (WC%VEG_HEIGHT > 0.0_EB) THEN
 
-    DO KGRID=0,8
-      KLOC = KKG + KGRID
-      IF (Z(KLOC) <= WC%VEG_HEIGHT) THEN !grid cell filled with veg
+!   DO KGRID=0,8
+!     KLOC = KKG + KGRID
+!     IF (Z(KLOC) <= WC%VEG_HEIGHT) THEN !grid cell filled with veg
 !print '(A,1x,3I3,2ES12.4)','kgrid,kkg,kloc,z,veg height',kgrid,kkg,kloc,z(kloc),wc%veg_height
-        TMP_G = TMP(IIG,JJG,KLOC)
-        RHO_GAS  = RHO(IIG,JJG,KLOC)
-!        MU_GAS   = MU_Z(MIN(5000,NINT(TMP_G)),0)*SPECIES_MIXTURE(0)%MW
-        ZZ_GET(1:N_TRACKED_SPECIES) = ZZ(IIG,JJG,KLOC,1:N_TRACKED_SPECIES)
-        CALL GET_VISCOSITY(ZZ_GET,MU_GAS,TMP_G)
-        U2 = 0.25*(U(IIG,JJG,KLOC)+U(IIG-1,JJG,KLOC))**2
-        V2 = 0.25*(V(IIG,JJG,KLOC)+V(IIG,JJG-1,KLOC))**2
-        RE_VEG_PART = 4._EB*RHO_GAS*SQRT(U2 + V2 + W(IIG,JJG,KLOC)**2)/SF%VEG_SV/MU_GAS !for cylinder particle
-        C_DRAG = 0.0_EB
-        IF (RE_VEG_PART > 0.0_EB) C_DRAG = DRAG(RE_VEG_PART,2) !2 is for cylinder, 1 is for sphere
-        VEG_DRAG(IIG,JJG,KLOC)= C_DRAG*SF%VEG_DRAG_INI
-      ENDIF
+!       TMP_G = TMP(IIG,JJG,KLOC)
+!       RHO_GAS  = RHO(IIG,JJG,KLOC)
+!       ZZ_GET(1:N_TRACKED_SPECIES) = ZZ(IIG,JJG,KLOC,1:N_TRACKED_SPECIES)
+!       CALL GET_VISCOSITY(ZZ_GET,MU_GAS,TMP_G)
+!       U2 = 0.25*(U(IIG,JJG,KLOC)+U(IIG-1,JJG,KLOC))**2
+!       V2 = 0.25*(V(IIG,JJG,KLOC)+V(IIG,JJG-1,KLOC))**2
+!       RE_VEG_PART = 4._EB*RHO_GAS*SQRT(U2 + V2 + W(IIG,JJG,KLOC)**2)/SF%VEG_SV/MU_GAS !for cylinder particle
+!       C_DRAG = 0.0_EB
+!       IF (RE_VEG_PART > 0.0_EB) C_DRAG = DRAG(RE_VEG_PART,2) !2 is for cylinder, 1 is for sphere
+!       VEG_DRAG(IIG,JJG,KLOC)= C_DRAG*SF%VEG_DRAG_INI
+!     ENDIF
 
-      IF (Z(KLOC) >  WC%VEG_HEIGHT .AND. Z(KLOC-1) < WC%VEG_HEIGHT) THEN !grid cell is partially filled with veg
-        TMP_G = TMP(IIG,JJG,KLOC)
-        RHO_GAS  = RHO(IIG,JJG,KLOC)
-!        MU_GAS   = MU_Z(MIN(5000,NINT(TMP_G)),0)*SPECIES_MIXTURE(0)%MW
-        ZZ_GET(1:N_TRACKED_SPECIES) = ZZ(IIG,JJG,KLOC,1:N_TRACKED_SPECIES)
-        CALL GET_VISCOSITY(ZZ_GET,MU_GAS,TMP_G)
-        U2 = 0.25*(U(IIG,JJG,KLOC)+U(IIG-1,JJG,KLOC))**2
-        V2 = 0.25*(V(IIG,JJG,KLOC)+V(IIG,JJG-1,KLOC))**2
-        RE_VEG_PART = 4._EB*RHO_GAS*SQRT(U2 + V2 + W(IIG,JJG,KLOC)**2)/SF%VEG_SV/MU_GAS !for cylinder particle
-        C_DRAG = 0.0_EB
-        IF (RE_VEG_PART > 0.0_EB) C_DRAG = DRAG(RE_VEG_PART,2) !2 is for cylinder, 1 is for sphere
-        VEG_DRAG(IIG,JJG,KLOC)= C_DRAG*SF%VEG_DRAG_INI*(WC%VEG_HEIGHT-Z(KLOC-1))/(Z(KLOC)-Z(KLOC-1))
-      ENDIF
+!     IF (Z(KLOC) >  WC%VEG_HEIGHT .AND. Z(KLOC-1) < WC%VEG_HEIGHT) THEN !grid cell is partially filled with veg
+!       TMP_G = TMP(IIG,JJG,KLOC)
+!       RHO_GAS  = RHO(IIG,JJG,KLOC)
+!       ZZ_GET(1:N_TRACKED_SPECIES) = ZZ(IIG,JJG,KLOC,1:N_TRACKED_SPECIES)
+!       CALL GET_VISCOSITY(ZZ_GET,MU_GAS,TMP_G)
+!       U2 = 0.25*(U(IIG,JJG,KLOC)+U(IIG-1,JJG,KLOC))**2
+!       V2 = 0.25*(V(IIG,JJG,KLOC)+V(IIG,JJG-1,KLOC))**2
+!       RE_VEG_PART = 4._EB*RHO_GAS*SQRT(U2 + V2 + W(IIG,JJG,KLOC)**2)/SF%VEG_SV/MU_GAS !for cylinder particle
+!       C_DRAG = 0.0_EB
+!       IF (RE_VEG_PART > 0.0_EB) C_DRAG = DRAG(RE_VEG_PART,2) !2 is for cylinder, 1 is for sphere
+!       VEG_DRAG(IIG,JJG,KLOC)= C_DRAG*SF%VEG_DRAG_INI*(WC%VEG_HEIGHT-Z(KLOC-1))/(Z(KLOC)-Z(KLOC-1))
+!     ENDIF
 
-    ENDDO
+!   ENDDO
 
-  ENDIF
+! ENDIF
 
   IF(SF%VEG_NO_BURN) CYCLE VEG_WALL_CELL_LOOP
 
