@@ -5871,7 +5871,7 @@ VEG_A_CHAR                   = 430._EB !m/s Porterie, Grishin
 VEG_E_CHAR                   = 9000._EB !K
 VEG_BETA_CHAR                = 0.2_EB !Porterie to account for blowing in char ox
 VEG_NU_O2_CHAR               = 1.65_EB !Porterie
-VEG_UNIT_DRAG_COEFF          = .FALSE.
+VEG_UNIT_DRAG_COEFF          = .TRUE. !A constant drag coefficient = 1 is assumed, no Re dependence
 
 !Default values for level set fire front propagation model parameters
 VEG_LSET_IGNITE_TIME         = 1.0E20_EB

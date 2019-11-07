@@ -735,7 +735,8 @@ CALL ChkMemErr('INIT','WALL_WORK2',IZERO)
 
 ALLOCATE(M%VEG_DRAG(0:IBP1,0:JBP1,0:8),STAT=IZERO)
 CALL ChkMemErr('INIT','VEG_DRAG',IZERO) 
-M%VEG_DRAG = 0._EB
+M%VEG_DRAG = 0._EB 
+M%VEG_DRAG(:,:,0) = -1._EB !default value for no veg
 
 ! Allocate Level Set arrays
 

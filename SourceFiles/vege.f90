@@ -1369,14 +1369,14 @@ CALL POINT_TO_MESH(NM)
 
 IF (VEG_LEVEL_SET_COUPLED .OR. VEG_LEVEL_SET_UNCOUPLED) RETURN
 
-TMP_BOIL        = 373._EB
-TMP_CHAR_MAX    = 1300._EB
-CP_ASH          = 800._EB !J/kg/K specific heat of ash
-CP_H2O          = 4190._EB !J/kg/K specific heat of water
-DT_BC           = T - VEG_CLOCK_BC
-RDT_BC          = 1.0_EB/DT_BC
-VEG_DRAG        = 0.0_EB
-VEG_DRAG(:,:,0) = -1.0_EB !default value when no veg is present
+TMP_BOIL          = 373._EB
+TMP_CHAR_MAX      = 1300._EB
+CP_ASH            = 800._EB !J/kg/K specific heat of ash
+CP_H2O            = 4190._EB !J/kg/K specific heat of water
+DT_BC             = T - VEG_CLOCK_BC
+RDT_BC            = 1.0_EB/DT_BC
+VEG_DRAG(:,:,1:8) = 0.0_EB
+!VEG_DRAG(:,:,0) = -1.0_EB !default value when no veg is present (set in init.f90)
 
 IF (N_REACTIONS>0) I_FUEL = REACTION(1)%FUEL_SMIX_INDEX
 
@@ -3956,7 +3956,7 @@ DO WHILE (TIME_LS < T_FINAL)
 
 !---Drag constant can vary with height, if hveg > dzgrid
 !print '(A,1x,5I3)','velocity_bc_index,nm,i,j,k',sf%velocity_bc_index,nm,iig,jjg,kkg
-    VEG_DRAG(IIG,JJG,:) = 0.0_EB
+!   VEG_DRAG(IIG,JJG,:) = 0.0_EB
 !   IF (WC%VEG_HEIGHT > 0.0_EB) THEN
 !    DO KGRID=1,8
 !     IF (Z(KGRID) <= WC%VEG_HEIGHT) VEG_DRAG(IIG,JJG,KGRID)= SF%VEG_DRAG_INI
