@@ -1,10 +1,14 @@
 &HEAD CHID='grasshill_TE_LS4', TITLE='Level Set coupled to time dependent wind with thermal elements for Simple Hill case' /
-&MISC TERRAIN_CASE=.FALSE.,VEG_LEVEL_SET_COUPLED=.TRUE.,VEG_LEVEL_SET_SURFACE_HEATFLUX=.FALSE.,VEG_LEVEL_SET_THERMAL_ELEMENTS=.TRUE.,PROJECTION=.TRUE. /
-&TIME T_END=120 / 
-&CSVF UVWFILE='simple_grasshill_windonly_uvw_t001_m001.csv' / file with initial wind field
-&CSVF UVWFILE='simple_grasshill_windonly_uvw_t001_m002.csv' / 
-&CSVF UVWFILE='simple_grasshill_windonly_uvw_t001_m003.csv' / 
-&CSVF UVWFILE='simple_grasshill_windonly_uvw_t001_m004.csv' / 
+&MISC TERRAIN_CASE=.FALSE.,
+      VEG_LEVEL_SET_COUPLED=.TRUE.,
+      VEG_LEVEL_SET_SURFACE_HEATFLUX=.FALSE.,
+      VEG_LEVEL_SET_THERMAL_ELEMENTS=.TRUE.,
+      PROJECTION=.FALSE. /
+&TIME T_END=150 / 
+cCSVF UVWFILE='simple_grasshill_windonly_uvw_t001_m001.csv' / file with initial wind field
+cCSVF UVWFILE='simple_grasshill_windonly_uvw_t001_m002.csv' / 
+cCSVF UVWFILE='simple_grasshill_windonly_uvw_t001_m003.csv' / 
+cCSVF UVWFILE='simple_grasshill_windonly_uvw_t001_m004.csv' / 
 
 &DUMP DT_SLCF=1,DT_ISOF=0.1,DT_BNDF=1,SMOKE3D=.FALSE. /  
 
@@ -28,12 +32,6 @@ cMESH IJK=28,25,25, XB=22,50,  0,25,0,25 /
 - 4 meshes equal checkerboards
 &MULT ID='lower',DX=25,DY=25,DZ=25,I_LOWER=0,I_UPPER=1,J_LOWER=0,J_UPPER=1,K_LOWER=0,K_UPPER=0 /
 &MESH IJK=25,25,25, XB=0,25,-25,0,0,25,MULT_ID='lower' / 
-
--- Unlike the LS3 case the drag due to the vegetation is not accounted for here (VEGETATION=.FALSE.). The
-   code needs some work before this can be done.
-   The paramenter VEG_LSET_QCON (kW/m^2) defines the heat input into the gas phase as a heat flux
-   boundary condtion where the level set locates the fireline. This was determined from the
-   physics-based simulation (for AU grassland fires it is about 630 kW/m^2
 
 - Not "Farsite"
 cSURF ID = 'GRASS'
@@ -80,7 +78,7 @@ cSURF ID = 'GRASS'
 
 
 -- Ignitor fire
-&SURF ID = 'IGN FIRE0',VEG_LSET_IGNITE_TIME =0,COLOR = 'RED' /
+&SURF ID = 'IGN FIRE0',VEG_LSET_IGNITE_TIME =30,COLOR = 'RED' /
 &VENT XB=5,6,-15,15,0,0,SURF_ID='IGN FIRE0' / upwind of hill
 
 - Hill and grass on slope
