@@ -618,7 +618,8 @@ REAL(EB) :: FCTR_DT_CYCLES,FCTR_RDT_CYCLES,Q_VEG_CHAR_TOTAL,MPV_CHAR_CO2_TOTAL,M
             MPV_MOIST_LOSS_TOTAL,MPV_VOLIT_TOTAL,VEG_VF
 REAL(EB) :: VEG_CRITICAL_MASSFLUX,VEG_CRITICAL_MASSSOURCE
 REAL(EB) :: CM,CN,RHO_AIR
-REAL(EB) :: HCON_VEG_FORCED,HCON_VEG_FREE,LENGTH_SCALE,NUSS_HILPERT_CYL_FORCEDCONV,NUSS_MORGAN_CYL_FREECONV,RAYLEIGH_NUM
+REAL(EB) :: HCON_VEG_FORCED,HCON_VEG_FREE,LENGTH_SCALE,NUSS_HILPERT_CYL_FORCEDCONV,NUSS_MORGAN_CYL_FREECONV,RAYLEIGH_NUM, &
+            R_VEG_CYL_DIAM,HC_VERT_CYL,HC_HORI_CYL
 
 !place holder
 REAL(EB) :: RCP_TEMPORARY
@@ -840,54 +841,67 @@ TIME_SUBCYCLING_LOOP: DO IDT=1,NDT_CYCLES
  CP_VEG   = (0.01_EB + 0.0037_EB*TMP_VEG)*1000._EB !J/kg/K Ritchie IAFSS 1997:177-188
  CP_CHAR  = 420._EB + 2.09_EB*TMP_VEG + 6.85E-4_EB*TMP_VEG**2 !J/kg/K Park etal. C&F 2010 147:481-494
  CP_ASH   = 1244._EB*(TMP_VEG/TMPA)**0.315 !J/kg/K Lautenberger & Fernandez-Pell, C&F 2009 156:1503-1513
+ R_VEG_CYL_DIAM = 0.25_EB*SV_VEG
 
-! Divergence of convective and radiative heat fluxes
- RE_D     = RHO_GAS*QREL*4._EB/(SV_VEG*MU_GAS)
+! Convective heat flux on thermal elements
+
+ IF_QCONV: IF (.NOT. PC%VEG_HCONV_CYLLAM) THEN
+
+   RE_D     = RHO_GAS*QREL*4._EB/(SV_VEG*MU_GAS)
 
 ! - Forced convection heat transfer coefficients on veg particles
 !
 ! Hilpert Correlation (Incropera & DeWitt Fourth Edition, p. 370) for cylinder in crossflow,
 ! forced convection
- IF(RE_D < 4._EB) THEN
-   CN = 0.989_EB
-   CM = 0.330_EB
- ELSE IF (RE_D >= 4._EB .AND. RE_D < 40._EB) THEN
-   CN = 0.911_EB
-   CM = 0.385_EB
- ELSE
-   CN = 0.683_EB
-   CM = 0.466_EB
- ENDIF
- NUSS_HILPERT_CYL_FORCEDCONV = CN*(RE_D**CM)*PR_ONTH !Nusselt number
+   IF(RE_D < 4._EB) THEN
+     CN = 0.989_EB
+     CM = 0.330_EB
+   ELSE IF (RE_D >= 4._EB .AND. RE_D < 40._EB) THEN
+     CN = 0.911_EB
+     CM = 0.385_EB
+   ELSE
+     CN = 0.683_EB
+     CM = 0.466_EB
+   ENDIF
+   NUSS_HILPERT_CYL_FORCEDCONV = CN*(RE_D**CM)*PR_ONTH !Nusselt number
 !print '(A,2x,2ES12.4)','nuss Hilpert,Re', NUSS_HILPERT_CYL_FORCEDCONV,re_d
- HCON_VEG_FORCED = 0.25_EB*SV_VEG*K_GAS*NUSS_HILPERT_CYL_FORCEDCONV !W/m^2 from Hilpert (cylinder)
+   HCON_VEG_FORCED = 0.25_EB*SV_VEG*K_GAS*NUSS_HILPERT_CYL_FORCEDCONV !W/m^2 from Hilpert (cylinder)
 
 ! - Free convection heat transfer coefficients
- LENGTH_SCALE = 4._EB/SV_VEG !horizontal cylinder diameter
- RAYLEIGH_NUM = 9.8_EB*ABS(TMP_GMV)*LENGTH_SCALE**3*RHO_GAS**2*CP_GAS/(TMP_FILM*MU_GAS*K_GAS)
+   LENGTH_SCALE = 4._EB/SV_VEG !horizontal cylinder diameter
+   RAYLEIGH_NUM = 9.8_EB*ABS(TMP_GMV)*LENGTH_SCALE**3*RHO_GAS**2*CP_GAS/(TMP_FILM*MU_GAS*K_GAS)
 
 ! Morgan correlation (Incropera & DeWitt, 4th Edition, p. 501-502) for horizontal cylinder of diameter
 ! 4/SV_VEG, free convection
- IF (RAYLEIGH_NUM < 0.01_EB) THEN
-   CN = 0.675_EB
-   CM = 0.058_EB
- ELSE IF (RAYLEIGH_NUM >= 0.01_EB .AND. RAYLEIGH_NUM < 100._EB) THEN
-   CN = 1.02_EB
-   CM = 0.148_EB
- ELSE IF (RAYLEIGH_NUM >= 100._EB .AND. RAYLEIGH_NUM < 10**4._EB) THEN
-   CN = 0.85_EB
-   CM = 0.188_EB
- ELSE IF (RAYLEIGH_NUM >= 10**4._EB .AND. RAYLEIGH_NUM < 10**7._EB) THEN
-   CN = 0.48_EB
-   CM = 0.25_EB
- ELSE IF (RAYLEIGH_NUM >= 10**7._EB .AND. RAYLEIGH_NUM < 10**12._EB) THEN
-   CN = 0.125_EB
-   CM = 0.333_EB
- ENDIF
- NUSS_MORGAN_CYL_FREECONV = CN*RAYLEIGH_NUM**CM
- HCON_VEG_FREE = 0.25_EB*SV_VEG*K_GAS*NUSS_MORGAN_CYL_FREECONV !W/m^2
+   IF (RAYLEIGH_NUM < 0.01_EB) THEN
+     CN = 0.675_EB
+     CM = 0.058_EB
+   ELSE IF (RAYLEIGH_NUM >= 0.01_EB .AND. RAYLEIGH_NUM < 100._EB) THEN
+     CN = 1.02_EB
+     CM = 0.148_EB
+   ELSE IF (RAYLEIGH_NUM >= 100._EB .AND. RAYLEIGH_NUM < 10**4._EB) THEN
+     CN = 0.85_EB
+     CM = 0.188_EB
+   ELSE IF (RAYLEIGH_NUM >= 10**4._EB .AND. RAYLEIGH_NUM < 10**7._EB) THEN
+     CN = 0.48_EB
+     CM = 0.25_EB
+   ELSE IF (RAYLEIGH_NUM >= 10**7._EB .AND. RAYLEIGH_NUM < 10**12._EB) THEN
+     CN = 0.125_EB
+     CM = 0.333_EB
+   ENDIF
+   NUSS_MORGAN_CYL_FREECONV = CN*RAYLEIGH_NUM**CM
+   HCON_VEG_FREE = 0.25_EB*SV_VEG*K_GAS*NUSS_MORGAN_CYL_FREECONV !W/m^2
 
- QCON_VEG = MAX(HCON_VEG_FORCED,HCON_VEG_FREE)*TMP_GMV !W/m^2
+   QCON_VEG = MAX(HCON_VEG_FORCED,HCON_VEG_FREE)*TMP_GMV !W/m^2
+
+ ELSE  !Laminar flow, cyl of diameter 4/sv_veg
+
+  HC_VERT_CYL = 1.42_EB*(ABS(TMP_GMV)*R_VEG_CYL_DIAM)**0.25_EB !Holman vertical cylinder
+  HC_HORI_CYL = 1.32_EB*(ABS(TMP_GMV)*R_VEG_CYL_DIAM)**0.25_EB !Holman horizontal cylinder
+  QCON_VEG    = TMP_GMV*0.5_EB*(HC_VERT_CYL+HC_HORI_CYL) !average of vertical and horizontal cylinder 
+
+ ENDIF IF_QCONV
+
  
 ! IF (TMP_VEG >= TMP_GAS )QCON_VEG = SV_VEG*(0.5_EB*K_AIR*0.683_EB*RE_D**0.466_EB)*0.5_EB*TMP_GMV !W/m^2 from Porterie
 ! IF (TMP_VEG <  TMP_GAS ) QCON_VEG = TMP_GMV*1.42_EB*(ABS(TMP_GMV)/DZ(KK))**0.25_EB !Holman
