@@ -5,9 +5,9 @@ The input file is based on field collected data. It is based on 29 processor run
 of interest for which we estimate fire behavior. The upwind area is included to deal with fetch issues, 
 a downwind area is included for the boundary conditions, and we try to keep the area of interest away from 
 the sides of the domain. Depending on tree size you may have to adjust all of these to ensure you avoid 
-fetch and edge issues. The output data is sued with some matlab scripts we have developed to estimate 
-rate of spread, fireline intensity, and the flow field. We also use OUTPUT_TREE=.True. with a unique 
-id for all tree to estimate the amount of canopy consumed. 
+fetch and edge issues. The output data is used with some matlab scripts we have developed to estimate 
+rate of spread, fireline intensity, and the flow field. We also use OUTPUT_TREE=.TRUE. with a unique 
+ID for all trees to estimate the amount of canopy consumed. 
 
 --- some parameter names are out of date
 
@@ -123,16 +123,19 @@ id for all tree to estimate the amount of canopy consumed.
 - Surface fuel based on field measurements on site. Assumes a homogeneous surface fuel layer across the stand. 
 &SURF ID = 'GROUND VEG1'
       VEGETATION = .TRUE.
-      VEGETATION_INITIAL_TEMP = 20
-      VEGETATION_CDRAG    = 0.05
-      VEGETATION_MOISTURE = 0.05
-      VEGETATION_SVRATIO  = 5710
-      VEGETATION_CHAR_FRACTION  = 0.265
-      VEGETATION_LOAD     = 0.23
-      VEGETATION_HEIGHT   = 0.03
-      VEGETATION_ELEMENT_DENSITY= 510
+      VEG_INITIAL_TEMP = 20
+      VEG_DRAG_CONSTANT    = 0.159
+      VEG_UNIT_DRAG_COEFF = .TRUE.
+      VEG_POSTFIRE_DRAG_FCTR = 0.1
+      VEG_HCONV_CYLLAM = .TRUE.
+      VEG_MOISTURE = 0.05
+      VEG_SV  = 5710
+      VEG_CHAR_FRACTION  = 0.265
+      VEG_LOAD     = 0.23
+      VEG_HEIGHT   = 0.03
+      VEG_DENSITY= 510
       EMISSIVITY = 0.99 
-      VEGETATION_ARRHENIUS_DEGRAD=.FALSE.
+      VEG_DEGRADATION='LINEAR'
       FIRELINE_MLR_MAX = 0.35 
       RGB        = 122,117,48 /
 &VENT XB=1,680,0,400,0,0,SURF_ID='GROUND VEG1' /
@@ -143,16 +146,19 @@ id for all tree to estimate the amount of canopy consumed.
 
 &SURF ID = 'GROUND VEG2'
       VEGETATION = .TRUE.
-      VEGETATION_INITIAL_TEMP = 20
-      VEGETATION_CDRAG    = 0.05
-      VEGETATION_MOISTURE = 0.05
-      VEGETATION_SVRATIO  = 5710
-      VEGETATION_CHAR_FRACTION  = 0.265
-      VEGETATION_LOAD     = 0.23
-      VEGETATION_HEIGHT   = 0.03
-      VEGETATION_ELEMENT_DENSITY= 510
+      VEG_INITIAL_TEMP = 20
+      VEG_DRAG_CONSTANT    = 0.159
+      VEG_UNIT_DRAG_COEFF = .TRUE.
+      VEG_POSTFIRE_DRAG_FCTR = 0.1
+      VEG_HCONV_CYLLAM = .TRUE.
+      VEG_MOISTURE = 0.05
+      VEG_SV  = 5710
+      VEG_CHAR_FRACTION  = 0.265
+      VEG_LOAD     = 0.23
+      VEG_HEIGHT   = 0.03
+      VEG_DENSITY= 510
       EMISSIVITY = 0.99 
-      VEGETATION_ARRHENIUS_DEGRAD=.FALSE.
+      VEG_DEGRADATION='LINEAR'
       FIRELINE_MLR_MAX = 0.35 
       RGB        = 79,120,48 /
 &VENT XB=700,900,100,300,0,0,SURF_ID='GROUND VEG2' /
