@@ -81,6 +81,7 @@ TREE_LOOP: DO NCT=1,N_TREES
 
    VEG_PRESENT_FLAG = .FALSE. ; CELL_TAKEN_FLAG = .FALSE.
    IPC = TREE_PARTICLE_CLASS(NCT)
+print*,'vege: nct,ipc',nct,ipc
    PC=>PARTICLE_CLASS(IPC)
    PC%KILL_RADIUS = 0.5_EB/PC%VEG_SV !radius bound below which fuel elements are removed
 !  LP%VEG_VOLFRACTION = 0._EB !default volume fraction of veg in cell
@@ -1418,12 +1419,12 @@ VEG_WALL_CELL_LOOP: DO IW=1,N_EXTERNAL_WALL_CELLS+N_INTERNAL_WALL_CELLS
   IF(SF%VEG_NO_BURN .OR. T <= DT_BC) WC%VEG_HEIGHT = SF%VEG_HEIGHT
   VEG_DRAG(IIG,JJG,0) = REAL(KKG,EB) !for terrain location in drag calc in velo.f90
 
-!-- Simple Drag implementation, assumes veg height is <= grid cell height.
+!-- Simple Drag implementation for BF, assumes veg height is <= grid cell height.
 !   No Reynolds number dependence
 !VEG_DRAG(IIG,JJG,1) = SF%VEG_DRAG_INI*(SF%VEG_CHAR_FRACTION + CHAR_FCTR*WC%VEG_HEIGHT/SF%VEG_HEIGHT)
 !VEG_DRAG(IIG,JJG,1) = VEG_DRAG(IIG,JJG,1)*SF%VEG_HEIGHT/(Z(KKG)-Z(KKG-1))
 
-!-- Drag varies with height above the terrain according to the fraction of the grid cell occupied by veg
+!-- BF Drag varies with height above the terrain according to the fraction of the grid cell occupied by veg
 !   veg height can be < or >= than grid cell height, drage is Reynolds number dependent
 !   Implemented in velo.f90 
 !   KKG is the grid cell in the gas phase bordering the terrain (wall). For no terrain, KKG=1 along the "ground" 
@@ -3595,7 +3596,7 @@ INTEGER, INTENT(IN) :: NM
 REAL(EB), INTENT(IN) :: T_CFD
 LOGICAL :: COMPUTE_FM10_SRXY,COMPUTE_HEADROS_FM10,COMPUTE_HEADROS_RSA,COMPUTE_RSA_SRXY
 INTEGER :: J_FLANK,I,II,IIG,IIO,IOR,IPC,IW,J,JJ,JJG,JJO,KK,KKG,KKO,NOM
-INTEGER :: IDUM,JDUM,KDUM,KGRID,KWIND
+INTEGER :: IDUM,JDUM,KDUM,KGRID,KWIND,I_FUEL
 !LOGICAL :: IGNITION = .FALSE.
 REAL(EB) :: ARO,BURNTIME,BURNOUT_FCTR,BT,FB_TIME_FCTR,FLI,HEAD_WIDTH_FCTR,GRIDCELL_FRACTION,GRIDCELL_TIME, &
             I_CROWN_INI,I_SURF,IGNITION_WIDTH_Y,RFIREBASE_TIME,RGRIDCELL_TIME,ROS_FLANK1, &
@@ -3622,7 +3623,7 @@ J_FLANK          = 1
 ROS_FLANK1       = 0._EB
 
 IF (VEG_LEVEL_SET_COUPLED) THEN 
- Q       = 0.0_EB !HRRPUV array
+!Q       = 0.0_EB !HRRPUV array
  DT_LS   = MESHES(NM)%DT
  TIME_LS = T_CFD
  T_FINAL = TIME_LS + DT_LS
@@ -3964,6 +3965,11 @@ DO WHILE (TIME_LS < T_FINAL)
 !if(iig==46 .and. jjg==49 .and. nm==5) print '(A,2x,3ES12.4,L2)','SHF,HRRPUA_IN,WC%SHF=',shf,hrrpua_in(iig,jjg)*1000._EB,wc%veg_lset_surface_heatflux
     ENDIF
 
+    IF (SF%VEG_LSET_SURFACE_HRRPUA) THEN
+      I_FUEL = REACTION(1)%FUEL_SMIX_INDEX
+      WC%MASSFLUX(I_FUEL)      = -WC%VEG_LSET_SURFACE_HEATFLUX/SF%VEG_LSET_HEAT_OF_COMBUSTION 
+!     WC%ONE_D%MASSFLUX_SPEC(I_FUEL) =  WC%ONE_D%MASSFLUX(I_FUEL) !used in WFDS6
+    ENDIF
     IF (VEG_LEVEL_SET_SURFACE_HEATFLUX) WC%QCONF = WC%VEG_LSET_SURFACE_HEATFLUX
     IF (VEG_LEVEL_SET_THERMAL_ELEMENTS) SF%DT_INSERT = DT_LS !**** is this correct?
     IF (WC%LSET_FIRE) HRRPUA_OUT(IIG,JJG) = -WC%VEG_LSET_SURFACE_HEATFLUX*0.001 !kW/m^2 for Smokeview output
