@@ -119,6 +119,9 @@ ID for all trees to estimate the amount of canopy consumed.
       C          = 3.4
       H          = 6.2
       HEAT_OF_COMBUSTION = 17700 /
+
+&SPEC ID='WATER VAPOR'/
+&SPEC ID='CARBON DIOXIDE'/
  
 - Surface fuel based on field measurements on site. Assumes a homogeneous surface fuel layer across the stand. 
 &SURF ID = 'GROUND VEG1'

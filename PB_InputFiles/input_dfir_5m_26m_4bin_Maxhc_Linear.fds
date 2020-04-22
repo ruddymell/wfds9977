@@ -19,6 +19,9 @@ cMULT ID='mesh', DX=3,DY=3,DZ=8, I_UPPER=3, J_UPPER=3, K_UPPER=1 /
       H          = 6.2
       HEAT_OF_COMBUSTION = 17700. /
 
+&SPEC ID='WATER VAPOR' /
+&SPEC ID='CARBON DIOXIDE' /
+
 &TIME T_END=45 / 
 &OBST XB=-0.5,0.5,-0.5,0.5,0,0.20 /
 
