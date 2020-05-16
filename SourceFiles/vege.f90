@@ -2724,7 +2724,7 @@ LSET_INIT_WALL_CELL_LOOP: DO IW=1,N_EXTERNAL_WALL_CELLS+N_INTERNAL_WALL_CELLS
   KKG = WC%KKG
 
 ! Ignite landscape at user specified location if ignition is at time zero
-  IF (SF%VEG_LSET_IGNITE_TIME == 0.0_EB) THEN 
+  IF (SF%VEG_LSET_IGNITE_TIME == 0.0_EB .AND. T_BEGIN >= 0._EB) THEN 
 !print '(A,ES12.4,1x,3I)','veg:LS lset_ignite_time,iig,jjg ',sf%veg_lset_ignite_time,iig,jjg
     PHI_LS(IIG,JJG) = PHI_MAX_LS 
     BURN_TIME_LS(IIG,JJG) = 99999.0_EB
@@ -3718,11 +3718,11 @@ DO WHILE (TIME_LS < T_FINAL)
   IOR = WC%IOR
   
 !-Ignite landscape at user specified location(s) and time(s) to originate Level Set fire front propagation
-  IF (SF%VEG_LSET_IGNITE_TIME > 0.0_EB .AND. SF%VEG_LSET_IGNITE_TIME < DT_LS) THEN
+  IF (SF%VEG_LSET_IGNITE_TIME > 0.0_EB .AND. SF%VEG_LSET_IGNITE_TIME < DT_LS .AND. T_CFD >= 0._EB) THEN
     PHI_LS(IIG,JJG) = PHI_MAX_LS 
     BURN_TIME_LS(IIG,JJG) = 99999.0_EB
   ENDIF
-  IF (SF%VEG_LSET_IGNITE_TIME >= TIME_LS .AND. SF%VEG_LSET_IGNITE_TIME <= TIME_LS + DT_LS) THEN 
+  IF (SF%VEG_LSET_IGNITE_TIME >= TIME_LS .AND. SF%VEG_LSET_IGNITE_TIME <= TIME_LS + DT_LS .AND. T_CFD >= 0._EB) THEN 
     PHI_LS(IIG,JJG) = PHI_MAX_LS 
     BURN_TIME_LS(IIG,JJG) = 99999.0_EB
   ENDIF
