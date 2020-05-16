@@ -1,0 +1,149 @@
+Demonstration of reduced-physics based implementation of WFDS6 using level set (LS) approach. The fire generated winds and
+the atmosphere are coupled (implmentation LS4) through the use of thermal elements (TE).
+Grass properties are from Australian grass experiment C064 (See Mell et al, Intnl. J. Wildland Fire 16,1-22 2007 
+
+&HEAD CHID='AUC64grasshill_wfds9977LS4TE', TITLE='Level Set4 simulation for Simple Hill case' /
+&MISC TERRAIN_CASE=.TRUE.,
+      VEG_LEVEL_SET_COUPLED=.TRUE.,
+      VEG_LEVEL_SET_UNCOUPLED=.FALSE.,
+      VEG_LEVEL_SET_SURFACE_HEATFLUX=.FALSE.,
+      VEG_LEVEL_SET_THERMAL_ELEMENTS=.TRUE. /
+&TIME T_END=300 / 
+&DUMP DT_SLCF=1,DT_BNDF=1,DT_OUTPUT_LS=1,SMOKE3D=.TRUE. /
+
+- 1 mesh
+cMESH IJK=50,50,25, XB=0,50,-25,25,0,25 /
+
+- 4 meshes
+&MULT ID='block',DX=25,DY=25,DZ=25,I_LOWER=0,I_UPPER=1,J_LOWER=0,J_UPPER=1,K_LOWER=0,K_UPPER=0 /
+&MESH IJK=25,25,25, XB=0,25,-25,0,0,25,MULT_ID='block' / 
+
+&REAC ID='WOOD'
+      FUEL='WOOD'
+      FYI='Ritchie, et al., 5th IAFSS, C_3.4 H_6.2 O_2.5, dHc = 15MW/kg'
+      SOOT_YIELD = 0.02
+      O          = 2.5
+      C          = 3.4
+      H          = 6.2
+      HEAT_OF_COMBUSTION = 18000 /
+
+&RADI RADIATIVE_FRACTION=0.35 /
+
+-- Implememenation in which user specifies head, flank, and back fire spread rates, these
+   are indepdent of the local wind (this capability is not fully functional)
+cSURF ID = 'GRASS'
+            VEG_LEVEL_SET_SPREAD = .TRUE.
+            VEG_LSET_PHIDEPTH = 0.5
+            VEG_LSET_ROS_HEAD  = 0.30
+            VEG_LSET_ROS_FLANK = 0.05
+            VEG_LSET_ROS_BACK  = 0.1
+            VEG_LSET_WIND_EXP = 1.0
+            VEGETATION = .FALSE.
+            VEGETATION_LOAD     = 0.313
+            VEGETATION_HEIGHT   = 0.51
+            VEGETATION_SVRATIO  = 12240
+            VEGETATION_ELEMENT_DENSITY= 512
+            RGB=122,117,48 /
+
+--Implementation follows that of FARSITE. See Bova et al. "A comparison of level set and marker
+  methods for the simulation of wildland fire front propagation," Intnl. J. Wildland Fire
+  25(2) 229-241, 2015. Grass properties are that of AU experiment C064. 
+&SURF ID = 'GRASS'
+            VEG_LEVEL_SET_SPREAD = .TRUE.
+            VEG_LSET_SURFACE_HRRPUA = .FALSE.
+            VEG_LSET_ELLIPSE = .TRUE.
+            VEG_LSET_SURFACE_FIRE_HEAD_ROS_MODEL='ROTHERMEL'
+            VEG_LSET_ROTH_ZEROWINDSLOPE_ROS = 0.016
+            VEG_LSET_HEAT_OF_COMBUSTION = 18000
+            VEG_LSET_BETA    = 0.0026
+            VEG_LSET_SIGMA   = 9977
+            VEG_LSET_SURF_HEIGHT = 0.21 
+            VEG_LSET_SURF_LOAD   = 0.283
+            VEG_LSET_SURF_EFFM   = 0.06
+            VEG_LSET_CHAR_FRACTION = 0.20
+            RGB=122,117,48
+            PART_ID='TE'
+            VEL = -0.01
+            NPPC = 1  /
+
+cSURF ID='GRASS',COLOR='GREEN' /
+
+&PART ID='TE'
+      TE_BURNTIME = 1
+      AGE = 10
+      MASSLESS = .TRUE.
+      SAMPLING_FACTOR = 1
+      COLOR = 'BLACK' /
+
+-- Burner
+cSURF ID='burner',HRRPUA=500,COLOR='RED' /
+cVENT XB=3,5,-15,15,0,0,SURF_ID='burner' /
+
+-- LS Ignitor fire
+&SURF ID = 'IGN FIRE0',VEG_LSET_IGNITE_TIME =21,COLOR = 'RED' /
+&VENT XB=5,6,-15,15,0,0,SURF_ID='IGN FIRE0' / upwind of hill
+
+- Hill and grass on slope
+-- Grass on flat upwind of hill
+&VENT XB=5,20,-20,20,0,0,SURF_ID='GRASS' /
+
+-- upslope
+&OBST XB=20,21,-20,20, 0, 1,SURF_ID='GRASS' /
+&OBST XB=21,22,-20,20, 0, 2,SURF_ID='GRASS' /
+&OBST XB=22,23,-20,20, 0, 3,SURF_ID='GRASS' /
+&OBST XB=23,24,-20,20, 0, 4,SURF_ID='GRASS' /
+
+&OBST XB=20,21,-25,-20, 0, 1 / no grass portion of hill
+&OBST XB=21,22,-25,-20, 0, 2 /
+&OBST XB=22,23,-25,-20, 0, 3 /
+&OBST XB=23,24,-25,-20, 0, 4 /
+&OBST XB=20,21, 20, 25, 0, 1 / 
+&OBST XB=21,22, 20, 25, 0, 2 /
+&OBST XB=22,23, 20, 25, 0, 3 /
+&OBST XB=23,24, 20, 25, 0, 4 /
+
+-- flat top
+&OBST XB=24,28,-20,20, 0, 4,SURF_ID='GRASS' /
+cOBST XB=24,28,-20,20, 0, 4,SURF_ID='IGN FIRE' /
+
+cOBST XB=24,28,-5,5, 0, 6,NOTERRAIN=.TRUE. / house
+&OBST XB=24,28,-25,-20, 0, 4 /
+&OBST XB=24,28, 20, 25, 0, 4 /
+
+-- downslope
+&OBST XB=28,29,-20,20, 0, 3,SURF_ID='GRASS'  /
+&OBST XB=29,30,-20,20, 0, 2,SURF_ID='GRASS'  /
+&OBST XB=30,31,-20,20, 0, 1,SURF_ID='GRASS'  /
+
+&OBST XB=28,29,-25,-20, 0, 3  /
+&OBST XB=29,30,-25,-20, 0, 2  /
+&OBST XB=30,31,-25,-20, 0, 1  /
+&OBST XB=28,29, 20, 25, 0, 3  /
+&OBST XB=29,30, 20, 25, 0, 2  /
+&OBST XB=30,31, 20, 25, 0, 1  /
+
+-- grass downwind of hill
+&VENT XB=31,45,-20,20, 0, 0,SURF_ID='GRASS'  /
+
+-- Boundary conditions
+&SURF ID='WIND', PROFILE='ATMOSPHERIC',Z0=2,VEL=-5,PLE=0.143, RAMP_V='wind',COLOR='BLUE' /
+&RAMP ID='wind',F=1,T=0 /
+&RAMP ID='wind',F=1,T=1 /
+&VENT PBX = 0, SURF_ID = 'WIND' /
+&VENT MB = XMAX, SURF_ID = 'OPEN' /
+&VENT MB = YMIN, SURF_ID = 'OPEN' /
+&VENT MB = YMAX, SURF_ID = 'OPEN' /
+&VENT MB = ZMAX, SURF_ID = 'OPEN' /
+
+-- Outputs
+&SLCF PBY=0,QUANTITY='VELOCITY',VECTOR=.TRUE. /
+&SLCF PBY=0,QUANTITY='TEMPERATURE' /
+&SLCF PBY=0,QUANTITY='HRRPUV' /
+&SLCF PBY=0,QUANTITY='MASS FRACTION',SPEC_ID='WOOD' /
+&SLCF PBZ=1,AGL_SLICE=2,QUANTITY='VELOCITY',VECTOR=.TRUE. /
+&SLCF PBZ=1,AGL_SLICE=6,QUANTITY='VELOCITY',VECTOR=.TRUE. /
+&BNDF QUANTITY='WALL TEMPERATURE'/
+&BNDF QUANTITY='CONVECTIVE HEAT FLUX'/
+&ISOF QUANTITY='TEMPERATURE',VALUE=50. /
+
+&TAIL /
