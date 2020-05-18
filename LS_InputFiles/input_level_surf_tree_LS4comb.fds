@@ -1,0 +1,163 @@
+Demonstration of reduced-physics based implementation of WFDS6 using level set (LS) approach. The fire generated winds and
+the atmosphere are coupled (implmentation LS4) through the explicit modeling of combustion (i.e., not thermal elements).
+
+&HEAD CHID='LSsurf_FEtree_LS4comb', TITLE='Level Set4 simulation for level terrain, grass, tree, gas phased combustion' /
+&MISC TERRAIN_CASE=.TRUE.,
+      VEG_LEVEL_SET_COUPLED=.TRUE.,
+      VEG_LEVEL_SET_UNCOUPLED=.FALSE.,
+      VEG_LEVEL_SET_SURFACE_HEATFLUX=.FALSE.,
+      VEG_LEVEL_SET_THERMAL_ELEMENTS=.FALSE. /
+&TIME T_END=400 / 
+&DUMP DT_SLCF=1,DT_BNDF=1,DT_OUTPUT_LS=1,SMOKE3D=.TRUE. /
+
+- 1 mesh
+cMESH IJK=50,50,25, XB=0,50,-25,25,0,25 /
+
+- 4 meshes
+&MULT ID='block',DX=25,DY=25,DZ=25,I_LOWER=0,I_UPPER=1,J_LOWER=0,J_UPPER=1,K_LOWER=0,K_UPPER=0 /
+&MESH IJK=25,25,25, XB=0,25,-25,0,0,25,MULT_ID='block' / 
+
+cTRNZ IDERIV=1,CC=0.,PC=0.5,MESH_NUMBER=1 /
+cTRNZ IDERIV=2,CC=0.,PC=0.0,MESH_NUMBER=1 /
+cTRNZ IDERIV=1,CC=0.,PC=0.5,MESH_NUMBER=2 /
+cTRNZ IDERIV=2,CC=0.,PC=0.0,MESH_NUMBER=2 /
+cTRNZ IDERIV=1,CC=0.,PC=0.5,MESH_NUMBER=3 /
+cTRNZ IDERIV=2,CC=0.,PC=0.0,MESH_NUMBER=3 /
+cTRNZ IDERIV=1,CC=0.,PC=0.5,MESH_NUMBER=4 /
+cTRNZ IDERIV=2,CC=0.,PC=0.0,MESH_NUMBER=4 /
+
+&REAC ID='WOOD'
+      FUEL='WOOD'
+      FYI='Ritchie, et al., 5th IAFSS, C_3.4 H_6.2 O_2.5, dHc = 15MW/kg'
+      SOOT_YIELD = 0.02
+      C          = 3.4
+      H          = 6.2
+      O          = 2.5
+      HEAT_OF_COMBUSTION = 18000 /
+
+&RADI RADIATIVE_FRACTION = 0.35 /
+
+-- Implememenation in which user specifies head, flank, and back fire spread rates, these
+   are indepdent of the local wind (this capability is not fully functional)
+cSURF ID = 'GRASS'
+            VEG_LEVEL_SET_SPREAD = .TRUE.
+            VEG_LSET_PHIDEPTH = 0.5
+            VEG_LSET_ROS_HEAD  = 0.30
+            VEG_LSET_ROS_FLANK = 0.05
+            VEG_LSET_ROS_BACK  = 0.1
+            VEG_LSET_WIND_EXP = 1.0
+            VEGETATION = .FALSE.
+            VEGETATION_LOAD     = 0.313
+            VEGETATION_HEIGHT   = 0.51
+            VEGETATION_SVRATIO  = 12240
+            VEGETATION_ELEMENT_DENSITY= 512
+            RGB=122,117,48 /
+
+--Implementation follows that of FARSITE. See Bova et al. "A comparison of level set and marker
+  methods for the simulation of wildland fire front propagation," Intnl. J. Wildland Fire
+  25(2) 229-241, 2015. Grass properties are that of AU experiment C064. 
+&SURF ID = 'C64 Grass'
+            VEG_LEVEL_SET_SPREAD = .TRUE.
+            VEG_LSET_SURFACE_HRRPUA = .TRUE.
+            VEG_LSET_ELLIPSE = .TRUE.
+            VEG_LSET_SURFACE_FIRE_HEAD_ROS_MODEL='ROTHERMEL'
+            VEG_LSET_ROTH_ZEROWINDSLOPE_ROS = 0.016
+            VEG_LSET_HEAT_OF_COMBUSTION = 18000
+            VEG_LSET_BETA    = 0.0026
+            VEG_LSET_SIGMA   = 9977
+            VEG_LSET_SURF_HEIGHT = 0.50 
+            VEG_LSET_SURF_LOAD   = 0.673
+            VEG_LSET_SURF_EFFM   = 0.06
+            VEG_LSET_CHAR_FRACTION = 0.20
+            RGB=122,117,48  /
+
+            VEG_LSET_SURF_HEIGHT = 0.21 
+            VEG_LSET_SURF_LOAD   = 0.283
+
+-- Short Needle litter (Fuel Model 8)
+cSURF ID = 'ShortNeedleLitter'
+            VEG_LEVEL_SET_SPREAD = .TRUE.
+            VEG_LSET_SURFACE_HRRPUA = .TRUE.
+            VEG_LSET_ELLIPSE = .TRUE.
+            VEG_LSET_SURFACE_FIRE_HEAD_ROS_MODEL='ROTHERMEL'
+            VEG_LSET_ROTH_ZEROWINDSLOPE_ROS = 0.0016
+            VEG_LSET_HEAT_OF_COMBUSTION = 18000
+            VEG_LSET_BETA    = 0.0359
+            VEG_LSET_SIGMA   = 6197 
+            VEG_LSET_SURF_HEIGHT = 0.06 
+            VEG_LSET_SURF_LOAD   = 1.12
+            VEG_LSET_SURF_EFFM   = 0.05
+            VEG_LSET_CHAR_FRACTION = 0.20
+            RGB=122,117,48  /
+
+-- Ignition of surface fire modeled by level set approach
+&SURF ID = 'IGN FIRE0',VEG_LSET_IGNITE_TIME =21,COLOR = 'RED' /
+&VENT XB=25,26,-10,10,0,0,SURF_ID='IGN FIRE0' / upwind of hill
+
+--Surface Veg
+&VENT XB=5,45,-20,20,0,0,SURF_ID='C64 Grass' /
+
+-- Trees
+&PART ID='needles',
+          TREE=.TRUE.,
+          QUANTITIES='VEG_TEMPERATURE',
+          VEG_INITIAL_TEMPERATURE=20.,
+          VEG_SV=3940.,
+          VEG_MOISTURE=1.00,
+          VEG_CHAR_FRACTION=0.25,
+          VEG_DRAG_CONSTANT=0.375,
+          VEG_DENSITY=514.,
+          VEG_BULK_DENSITY=1.21,
+          VEG_BURNING_RATE_MAX=0.31,
+          VEG_DEHYDRATION_RATE_MAX=0.31,
+          VEG_DEGRADATION='LINEAR',
+          VEG_HCONV_CYLLAM=.FALSE.,
+          VEG_REMOVE_CHARRED=.TRUE. /
+
+&TREE PART_ID='needles',
+          XYZ=35,0,0,
+          FUEL_GEOM='CONE',
+          CROWN_WIDTH=4.,
+          CROWN_BASE_HEIGHT=1.,
+          TREE_HEIGHT=10,
+          OUTPUT_TREE=.TRUE.,
+          LABEL='CenterTree' /
+
+&TREE PART_ID='needles',
+          XYZ=35,-4,0,
+          FUEL_GEOM='CONE',
+          CROWN_WIDTH=4.,
+          CROWN_BASE_HEIGHT=1.,
+          TREE_HEIGHT=10,
+          OUTPUT_TREE=.TRUE.,
+          LABEL='SouthTree' /
+
+&TREE PART_ID='needles',
+          XYZ=35,4,0,
+          FUEL_GEOM='CONE',
+          CROWN_WIDTH=4.,
+          CROWN_BASE_HEIGHT=1.,
+          TREE_HEIGHT=10,
+          OUTPUT_TREE=.TRUE.,
+          LABEL='NorthTree' /
+
+-- Boundary conditions
+&SURF ID='WIND', PROFILE='ATMOSPHERIC',Z0=2,VEL=-2.0,PLE=0.143, RAMP_V='wind',COLOR='BLUE' /
+&RAMP ID='wind',F=1,T=0 /
+&RAMP ID='wind',F=1,T=1 /
+&VENT PBX = 0, SURF_ID = 'WIND' /
+&VENT MB = XMAX, SURF_ID = 'OPEN' /
+&VENT MB = YMIN, SURF_ID = 'OPEN' /
+&VENT MB = YMAX, SURF_ID = 'OPEN' /
+&VENT MB = ZMAX, SURF_ID = 'OPEN' /
+
+-- Outputs
+&SLCF PBY=0, QUANTITY='VELOCITY',VECTOR=.TRUE. /
+&SLCF PBY=0, QUANTITY='TEMPERATURE' /
+&SLCF PBY=0, QUANTITY='HRRPUV' /
+&SLCF PBY=0, QUANTITY='MASS FRACTION',SPEC_ID='WOOD' /
+&SLCF PBZ=1, QUANTITY='VELOCITY',VECTOR=.TRUE. /
+&SLCF PBZ=10,QUANTITY='VELOCITY',VECTOR=.TRUE. /
+&ISOF QUANTITY='TEMPERATURE',VALUE=50. /
+
+&TAIL /
