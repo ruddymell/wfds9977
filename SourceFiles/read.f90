@@ -5188,7 +5188,7 @@ READ_SURF_LOOP: DO N=0,N_SURF
    ! Level set vegetation fire spread specific
 
    IF (VEG_LSET_FIREBASE_TIME == -1._EB) THEN !residence time of fire in seconds
-     SF%VEG_LSET_FIREBASE_TIME  = 75600._EB/VEG_LSET_SIGMA !From Anderson (1969)
+     SF%VEG_LSET_FIREBASE_TIME  = 75600._EB/VEG_LSET_SIGMA !From Anderson (1969), VEG_LSET_SIGMA is 1/m here
    ELSE
      SF%VEG_LSET_FIREBASE_TIME  = VEG_LSET_FIREBASE_TIME !from input file
    ENDIF
