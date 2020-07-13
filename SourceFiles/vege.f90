@@ -1007,7 +1007,7 @@ TIME_SUBCYCLING_LOOP: DO IDT=1,NDT_CYCLES
 !Enthalpy of fuel element volatiles using Cp,volatiles(T) from Ritchie
          H_SENS_VEG_VOLIT = 0.0445_EB*(TMP_VEG**1.5_EB - TMP_GAS**1.5_EB) - 0.136_EB*(TMP_VEG - TMP_GAS)
          H_SENS_VEG_VOLIT = H_SENS_VEG_VOLIT*1000._EB !J/kg
-         Q_VEG_VOLIT      = CHAR_FCTR*MPV_VOLIT*H_SENS_VEG_VOLIT !J/m^3
+         Q_VEG_VOLIT      = MPV_VOLIT*H_SENS_VEG_VOLIT !J/m^3
          MW_VEG_VOLIT_TERM= MPV_VOLIT/SPECIES(FUEL_INDEX)%MW
         ENDIF IF_MD_VOLIT
 
