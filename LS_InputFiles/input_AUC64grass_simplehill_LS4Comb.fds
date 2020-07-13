@@ -1,5 +1,5 @@
 Demonstration of reduced-physics based implementation of WFDS6 using level set (LS) approach. The fire generated winds and
-the atmosphere are coupled (implmentation LS4) through the use of thermal elements (TE).
+the atmosphere are coupled (implmentation LS4) through explicit modeling of the combustion process.
 Grass properties are from Australian grass experiment C064 (See Mell et al, Intnl. J. Wildland Fire 16,1-22 2007 
 
 &HEAD CHID='AUC64grasshill_wfds9977LS4HRRPUA', TITLE='Level Set4 simulation for Simple Hill case' /
