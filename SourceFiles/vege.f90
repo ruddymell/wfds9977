@@ -2775,7 +2775,8 @@ LSET_INIT_WALL_CELL_LOOP: DO IW=1,N_EXTERNAL_WALL_CELLS+N_INTERNAL_WALL_CELLS
 
 !---Ellipse assumption with WFDS derived head ROS as a fuction of a local wind velocity measure
       IF (SF%VEG_LSET_SURFACE_FIRE_HEAD_ROS_MODEL=='ROSvsU' .AND. .NOT. SF%VEG_LSET_BURNER) &
-           CALL ROSVSU_HEADROS(NM,IIG,JJG,KKG,SF%VEG_LSET_SURF_HEIGHT,SF%VEG_LSET_UAVG_K,SF%VEG_LSET_UAVG_TIME)
+           CALL ROSVSU_HEADROS(NM,IIG,JJG,KKG,SF%VEG_LSET_SURF_HEIGHT,SF%VEG_LSET_UAVG_K,SF%VEG_LSET_UAVG_TIME, &
+                               SF%VEG_LSET_ROS_HEAD)
 
 !-- Find Rothermel surface veg head fire ROS at IIG,JJG
     IF (SF%VEG_LSET_SURFACE_FIRE_HEAD_ROS_MODEL=='ROTHERMEL') THEN    
@@ -3290,13 +3291,13 @@ ROS_HEAD_SURF(I,J)  = (0.165_EB + 0.534_EB*UMAG)*EXP(-0.108*VEG_MOIST)
 END SUBROUTINE AUGRASS_HEADROS
 !
 !************************************************************************************************
-SUBROUTINE ROSVSU_HEADROS(NM,I,J,K,VEG_HT,UAVG_K,UAVG_TIME)
+SUBROUTINE ROSVSU_HEADROS(NM,I,J,K,VEG_HT,UAVG_K,UAVG_TIME,ROS_HEAD_CONSTANT)
 !************************************************************************************************
 !
 ! Compute the magnitude of the head fire as a function of the local wind from a given formula
 !
 INTEGER,  INTENT(IN) :: I,J,K,NM,UAVG_K
-REAL(EB), INTENT(IN) :: VEG_HT,UAVG_TIME
+REAL(EB), INTENT(IN) :: VEG_HT,UAVG_TIME,ROS_HEAD_CONSTANT
 INTEGER  :: KDUM,KWIND
 REAL(EB) :: FCTR1,FCTR2,U2MAGL,UMAG,V2MAGL,WAF_2MAGL,Z2MAGL,ZWFDS 
 LOGICAL  :: UNIFORM_UV
@@ -3376,27 +3377,35 @@ UMF(I,J) = SQRT(U_LS(I,J)**2 + V_LS(I,J)**2)*60._EB !m/min place holder until pr
 
 !--Empirical relation based on WFDS runs in C064 AU grassland experiment with M=6
 
+IF(LEVEL_SET_MODE /= 5) THEN 
+
 !Use instantaneous umag in empirical ROS vs umag equation
-UMAG = SQRT(U2MAGL**2 + V2MAGL**2)
-ROS_HEAD_SURF(I,J)  = 0.099_EB + 0.095_EB*UMAG + 0.0025_EB*UMAG**2
+  UMAG = SQRT(U2MAGL**2 + V2MAGL**2)
+  ROS_HEAD_SURF(I,J)  = 0.099_EB + 0.095_EB*UMAG + 0.0025_EB*UMAG**2
 
 !Find time average of Umag and use in emprical ROS vs umag equation
-U_LS_AVG(I,J)  = U_LS_AVG(I,J) + U2MAGL
-V_LS_AVG(I,J)  = V_LS_AVG(I,J) + V2MAGL
-NSUM_T_UAVG_LS = NSUM_T_UAVG_LS + 1
-SUM_T_UAVG_LS  = SUM_T_UAVG_LS + DT_LS
+  U_LS_AVG(I,J)  = U_LS_AVG(I,J) + U2MAGL
+  V_LS_AVG(I,J)  = V_LS_AVG(I,J) + V2MAGL
+  NSUM_T_UAVG_LS = NSUM_T_UAVG_LS + 1
+  SUM_T_UAVG_LS  = SUM_T_UAVG_LS + DT_LS
 
-IF (FIRST_AVG_FLAG_LS == 0) THEN !using running average until time reaches duration of averaging time window
-  UMAG = SQRT(U_LS_AVG(I,J)**2 + V_LS_AVG(I,J)**2)/REAL(NSUM_T_UAVG_LS,EB)
-  ROS_HEAD_SURF(I,J)  = 0.099_EB + 0.095_EB*UMAG + 0.0025_EB*UMAG**2
-ENDIF
+  IF (FIRST_AVG_FLAG_LS == 0) THEN !using running average until time reaches duration of averaging time window
+    UMAG = SQRT(U_LS_AVG(I,J)**2 + V_LS_AVG(I,J)**2)/REAL(NSUM_T_UAVG_LS,EB)
+    ROS_HEAD_SURF(I,J)  = 0.099_EB + 0.095_EB*UMAG + 0.0025_EB*UMAG**2
+  ENDIF
 
-IF (SUM_T_UAVG_LS >= UAVG_TIME) THEN    
-  UMAG = SQRT(U_LS_AVG(I,J)**2 + V_LS_AVG(I,J)**2)/REAL(NSUM_T_UAVG_LS,EB)
-  ROS_HEAD_SURF(I,J)  = 0.099_EB + 0.095_EB*UMAG + 0.0025_EB*UMAG**2
-  NSUM_T_UAVG_LS = 0
-  SUM_T_UAVG_LS  = 0.0_EB
-  FIRST_AVG_FLAG_LS = 1
+  IF (SUM_T_UAVG_LS >= UAVG_TIME) THEN    
+    UMAG = SQRT(U_LS_AVG(I,J)**2 + V_LS_AVG(I,J)**2)/REAL(NSUM_T_UAVG_LS,EB)
+    ROS_HEAD_SURF(I,J)  = 0.099_EB + 0.095_EB*UMAG + 0.0025_EB*UMAG**2
+    NSUM_T_UAVG_LS = 0
+    SUM_T_UAVG_LS  = 0.0_EB
+    FIRST_AVG_FLAG_LS = 1
+  ENDIF
+
+ELSE
+
+  ROS_HEAD_SURF(I,J) = ROS_HEAD_CONSTANT
+
 ENDIF
 
 END SUBROUTINE ROSVSU_HEADROS
@@ -3777,7 +3786,8 @@ DO WHILE (TIME_LS < T_FINAL)
 
 !---Ellipse assumption with WFDS derived head ROS as a fuction of a local wind velocity measure
       IF (SF%VEG_LSET_SURFACE_FIRE_HEAD_ROS_MODEL=='ROSvsU' .AND. .NOT. SF%VEG_LSET_BURNER) &
-           CALL ROSVSU_HEADROS(NM,IIG,JJG,KKG,SF%VEG_LSET_SURF_HEIGHT,SF%VEG_LSET_UAVG_K,SF%VEG_LSET_UAVG_TIME)
+           CALL ROSVSU_HEADROS(NM,IIG,JJG,KKG,SF%VEG_LSET_SURF_HEIGHT,SF%VEG_LSET_UAVG_K,SF%VEG_LSET_UAVG_TIME, &
+                               SF%VEG_LSET_ROS_HEAD)
 
 !---Ellipse assumption with Rothermel head fire ROS (== FARSITE) and compute ROS_FM10 if S&R crown model is implemented
       IF (SF%VEG_LSET_SURFACE_FIRE_HEAD_ROS_MODEL=='ROTHERMEL' .AND. .NOT. SF%VEG_LSET_BURNER) THEN 
