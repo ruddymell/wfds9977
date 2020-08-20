@@ -3372,8 +3372,8 @@ THETA_ELPS(I,J) = PIO2 - THETA_ELPS(I,J)
 IF (THETA_ELPS(I,J) < 0.0_EB) THETA_ELPS(I,J) = 2.0_EB*PI + THETA_ELPS(I,J)
 
 !Midflame wind speed for use length-to-breadth ratio when using the elliptical fire perimeter assumption
-!UMF(I,J) = SQRT(U2MAGL**2 + V2MAGL**2)*60._EB !m/min place holder until proper WAF, or other, approach is used
-UMF(I,J) = SQRT(U_LS(I,J)**2 + V_LS(I,J)**2)*60._EB !m/min place holder until proper WAF, or other, approach is used
+UMF(I,J) = SQRT(U2MAGL**2 + V2MAGL**2)*60._EB !m/min place holder until proper WAF, or other, approach is used
+!UMF(I,J) = SQRT(U_LS(I,J)**2 + V_LS(I,J)**2)*60._EB !m/min place holder until proper WAF, or other, approach is used
 
 !--Empirical relation based on WFDS runs in C064 AU grassland experiment with M=6
 
