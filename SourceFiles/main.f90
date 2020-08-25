@@ -376,6 +376,14 @@ IF (IMMERSED_BOUNDARY_METHOD>=0) THEN
    ENDDO
 ENDIF
 
+! Initialze the flow with ATMOSPHERICE profile throughout the computational domain
+IF (U_Z0_UATM /= 0._EB) THEN
+   DO NM=1,NMESHES
+      IF (PROCESS(NM)/=MYID) CYCLE
+      CALL INITIAL_ATMOSPHERIC_PROFILE(NM)
+   ENDDO
+ENDIF
+
 ! Initialize the flow field with random noise to eliminate false symmetries
 
 IF (NOISE .OR. PERIODIC_TEST>0) THEN

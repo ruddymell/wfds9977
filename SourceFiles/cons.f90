@@ -117,6 +117,9 @@ REAL(EB) :: CPOPR,RSC,RPR,TMPA,TMPA4,RHOA,P_INF,&
 REAL(FB) :: HRRPUV_MAX_SMV=-1.0_FB
 INTEGER :: USE_HRRPUV_MAX_SMV=0
 
+! For initializing veloity with ATMOSPHERIC profile throughout the computational domain
+REAL(EB) :: PLE_UATM,U_Z0_UATM,Z0_UATM
+
 ! Parameters associated with parallel mode
 
 INTEGER :: MYID=0,NUMPROCS=1,EVAC_PROCESS=-1
