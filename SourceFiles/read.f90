@@ -1455,7 +1455,7 @@ NAMELIST /MISC/ AL2O3,ALLOW_SURFACE_PARTICLES,ALLOW_UNDERSIDE_PARTICLES,ASSUMED_
                 VISIBILITY_FACTOR,VN_MAX,VN_MIN,W0,WFDS,WIND_ONLY,PLE_UATM,U_Z0_UATM,Z0_UATM, &
                 EVAC_SURF_DEFAULT,SUPPRESSION,SURF_DEFAULT,RADIATION ! Backward compatibility
 
-! Atmospherice Wind initialization throughout domain (default U_Z0_ATM = 0 is no initialization)
+! Atmospheric Wind initialization throughout domain (default U_Z0_ATM = 0 is no initialization)
 PLE_UATM  = 0.1423_EB
 U_Z0_UATM = 0.0_EB
 Z0_UATM   = 2._EB
