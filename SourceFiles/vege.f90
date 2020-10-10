@@ -1424,7 +1424,8 @@ VEG_WALL_CELL_LOOP: DO IW=1,N_EXTERNAL_WALL_CELLS+N_INTERNAL_WALL_CELLS
 !VEG_DRAG(IIG,JJG,1) = VEG_DRAG(IIG,JJG,1)*SF%VEG_HEIGHT/(Z(KKG)-Z(KKG-1))
 
 !-- BF Drag varies with height above the terrain according to the fraction of the grid cell occupied by veg
-!   veg height can be < or >= than grid cell height, drage is Reynolds number dependent
+!   veg height can be < or >= than grid cell height, drag is Reynolds number dependent when VEG_UNIT_DRAG_COEFF
+!   is FALSE.
 !   Implemented in velo.f90 
 !   KKG is the grid cell in the gas phase bordering the terrain (wall). For no terrain, KKG=1 along the "ground" 
 !   The Z() array is the height of the gas-phase cell. Z(0) = zmin for the current mesh 
@@ -2716,8 +2717,8 @@ LSET_INIT_WALL_CELL_LOOP: DO IW=1,N_EXTERNAL_WALL_CELLS+N_INTERNAL_WALL_CELLS
   IF (WC%BOUNDARY_TYPE==NULL_BOUNDARY) CYCLE LSET_INIT_WALL_CELL_LOOP
   SF  => SURFACE(WC%SURF_INDEX)
   SF%VEG_LSET_SURF_HEIGHT = MAX(0.001_EB,SF%VEG_LSET_SURF_HEIGHT)
-! WC%VEG_HEIGHT = SF%VEG_LSET_SURF_HEIGHT
-  WC%VEG_HEIGHT = 0.0_EB
+  WC%VEG_HEIGHT = SF%VEG_LSET_SURF_HEIGHT
+! WC%VEG_HEIGHT = 0.0_EB
 
   IIG = WC%IIG
   JJG = WC%JJG
@@ -3294,7 +3295,7 @@ END SUBROUTINE AUGRASS_HEADROS
 SUBROUTINE ROSVSU_HEADROS(NM,I,J,K,VEG_HT,UAVG_K,UAVG_TIME,ROS_HEAD_CONSTANT)
 !************************************************************************************************
 !
-! Compute the magnitude of the head fire as a function of the local wind from a given formula
+! Compute the magnitude of the head fire rate of spread as a function of the local wind from a given formula
 !
 INTEGER,  INTENT(IN) :: I,J,K,NM,UAVG_K
 REAL(EB), INTENT(IN) :: VEG_HT,UAVG_TIME,ROS_HEAD_CONSTANT
@@ -3328,9 +3329,9 @@ ENDIF
 !   equal to the first u,v location on grid
 !print*,'zwfds,z6ph,uniform_uv',zwfds,z6ph,uniform_uv
 KWIND = 0
-KDUM = 0
+KDUM  = 0
 IF (ZWFDS <= Z2MAGL .AND. .NOT. UNIFORM_UV) THEN 
-!Find k array index for first grid cell that has ZC > 2m - VEG_HT
+!Find k array index for first grid cell that has ZC > Z2MAGL 
    KWIND = 0
    KDUM  = K
    DO WHILE (ZWFDS < Z2MAGL) !this assumes the bottom computational boundary ground (which is true for the wind field?)
@@ -3380,8 +3381,8 @@ UMF(I,J) = SQRT(U2MAGL**2 + V2MAGL**2)*60._EB !m/min place holder until proper W
 IF(LEVEL_SET_MODE /= 5) THEN 
 
 !Use instantaneous umag in empirical ROS vs umag equation
-  UMAG = SQRT(U2MAGL**2 + V2MAGL**2)
-  ROS_HEAD_SURF(I,J)  = 0.099_EB + 0.095_EB*UMAG + 0.0025_EB*UMAG**2
+! UMAG = SQRT(U2MAGL**2 + V2MAGL**2)
+! ROS_HEAD_SURF(I,J)  = 0.099_EB + 0.095_EB*UMAG + 0.0025_EB*UMAG**2
 
 !Find time average of Umag and use in emprical ROS vs umag equation
   U_LS_AVG(I,J)  = U_LS_AVG(I,J) + U2MAGL
@@ -3598,13 +3599,14 @@ SUBROUTINE LEVEL_SET_FIREFRONT_PROPAGATION(T_CFD,NM)
 !
 ! Time step the scaler field PHI_LS. 
 !
-USE PHYSICAL_FUNCTIONS, ONLY : GET_MASS_FRACTION,GET_SPECIFIC_HEAT
+USE PHYSICAL_FUNCTIONS, ONLY : DRAG,GET_MASS_FRACTION,GET_SPECIFIC_HEAT,GET_VISCOSITY,GET_CONDUCTIVITY
 CHARACTER(5) :: COMPUTE_ROS
 INTEGER, INTENT(IN) :: NM
 REAL(EB), INTENT(IN) :: T_CFD
 LOGICAL :: COMPUTE_FM10_SRXY,COMPUTE_HEADROS_FM10,COMPUTE_HEADROS_RSA,COMPUTE_RSA_SRXY
 INTEGER :: J_FLANK,I,II,IIG,IIO,IOR,IPC,IW,J,JJ,JJG,JJO,KK,KKG,KKO,NOM
 INTEGER :: IDUM,JDUM,KDUM,KGRID,KWIND,I_FUEL
+INTEGER :: KLOC_GAS
 !LOGICAL :: IGNITION = .FALSE.
 REAL(EB) :: ARO,BURNTIME,BURNOUT_FCTR,BT,FB_TIME_FCTR,FLI,HEAD_WIDTH_FCTR,GRIDCELL_FRACTION,GRIDCELL_TIME, &
             I_CROWN_INI,I_SURF,IGNITION_WIDTH_Y,RFIREBASE_TIME,RGRIDCELL_TIME,ROS_FLANK1, &
@@ -3613,6 +3615,8 @@ REAL(EB) :: COSDPHIU,DPHIDX,DPHIDY,DPHIDOTU,DPHIMAG,XI,YJ,ZK,RCP_GAS,TE_HRRPUV,T
 REAL(EB) :: PHI_CHECK,LSET_PHI_F,LSET_PHI_V
 REAL(EB) :: VEG_BETA_FM10,VEG_SV_FM10
 REAL(FB) :: TIME_LS_OUT
+REAL(EB) :: ZZ_GET(0:N_TRACKED_SPECIES)
+REAL(EB) :: C_DRAG,MU_GAS,RE_VEG_PART,RHO_GAS,TMP_G,U2,V2,VEG_DRAG_MIN,VEG_DRAG_RAMP_FCTR,ZLOC_GAS_T,ZLOC_GAS_B
 
 REAL(EB), POINTER, DIMENSION(:,:,:) :: OM_LSET_PHI =>NULL()
 TYPE (WALL_TYPE),     POINTER :: WC =>NULL()
@@ -3712,10 +3716,12 @@ DO WHILE (TIME_LS < T_FINAL)
 !-----------------------------------------------------------------------------------------
 
  TIME_LS_LAST = TIME_LS
+ VEG_DRAG(:,:,1:8) = 0.0_EB
 
  WALL_CELL_LOOP1: DO IW=1,N_EXTERNAL_WALL_CELLS+N_INTERNAL_WALL_CELLS
   WC  => WALL(IW)
   IF (WC%BOUNDARY_TYPE==NULL_BOUNDARY) CYCLE WALL_CELL_LOOP1
+! IF (WC%BOUNDARY_TYPE/=SOLID_BOUNDARY) CYCLE WALL_CELL_LOOP1
   SF  => SURFACE(WC%SURF_INDEX)
 
   II  = WC%II 
@@ -3737,6 +3743,8 @@ DO WHILE (TIME_LS < T_FINAL)
   ENDIF
 
   IF (.NOT. SF%VEG_LSET_SPREAD) CYCLE WALL_CELL_LOOP1
+
+  VEG_DRAG(IIG,JJG,0) = REAL(KKG,EB) !for terrain location in drag calc in velo.f90
 
 ! --- For the CFIS crown fire model, compute dot product between normal to fireline and wind direction. If location 
 !     on fire perimeter is between the flank and backing fires, then skip computation of crown fire ROS and use already 
@@ -3878,8 +3886,8 @@ DO WHILE (TIME_LS < T_FINAL)
           1.0_EB - (BT - GRIDCELL_TIME)*RFIREBASE_TIME
 !       Fire has left cell
         IF (BT > GRIDCELL_TIME + SF%VEG_LSET_FIREBASE_TIME) WC%LSET_FIRE = .FALSE.
-!       WC%VEG_HEIGHT = SF%VEG_LSET_SURF_HEIGHT*(1._EB - BT/(SF%VEG_LSET_FIREBASE_TIME+GRIDCELL_TIME))
-        WC%VEG_HEIGHT = 0.0_EB
+        WC%VEG_HEIGHT = SF%VEG_LSET_SURF_HEIGHT*(1._EB - BT/(SF%VEG_LSET_FIREBASE_TIME+GRIDCELL_TIME))
+!       WC%VEG_HEIGHT = 0.0_EB
         BURN_TIME_LS(IIG,JJG) = BURN_TIME_LS(IIG,JJG) + DT_LS
 
 !if(iig==46 .and. jjg==49 .and. nm==5) then 
@@ -3904,8 +3912,8 @@ DO WHILE (TIME_LS < T_FINAL)
           1.0_EB - (BT - SF%VEG_LSET_FIREBASE_TIME)*RGRIDCELL_TIME
 !       Fire has left cell
         IF (BT > GRIDCELL_TIME + SF%VEG_LSET_FIREBASE_TIME) WC%LSET_FIRE = .FALSE.
-!       WC%VEG_HEIGHT = SF%VEG_LSET_SURF_HEIGHT*(1._EB - BT/(SF%VEG_LSET_FIREBASE_TIME+GRIDCELL_TIME))
-        WC%VEG_HEIGHT = 0.0_EB
+        WC%VEG_HEIGHT = SF%VEG_LSET_SURF_HEIGHT*(1._EB - BT/(SF%VEG_LSET_FIREBASE_TIME+GRIDCELL_TIME))
+!       WC%VEG_HEIGHT = 0.0_EB
         BURN_TIME_LS(IIG,JJG) = BURN_TIME_LS(IIG,JJG) + DT_LS
 
 !if(iig==46 .and. jjg==49 .and. nm==5) then 
@@ -3983,16 +3991,69 @@ DO WHILE (TIME_LS < T_FINAL)
     IF (VEG_LEVEL_SET_THERMAL_ELEMENTS) SF%DT_INSERT = DT_LS !**** is this correct?
     IF (WC%LSET_FIRE) HRRPUA_OUT(IIG,JJG) = -WC%VEG_LSET_SURFACE_HEATFLUX*0.001 !kW/m^2 for Smokeview output
 
-!---Drag constant can vary with height, if hveg > dzgrid
-!print '(A,1x,5I3)','velocity_bc_index,nm,i,j,k',sf%velocity_bc_index,nm,iig,jjg,kkg
-!   VEG_DRAG(IIG,JJG,:) = 0.0_EB
-!   IF (WC%VEG_HEIGHT > 0.0_EB) THEN
-!    DO KGRID=1,8
-!     IF (Z(KGRID) <= WC%VEG_HEIGHT) VEG_DRAG(IIG,JJG,KGRID)= SF%VEG_DRAG_INI
-!     IF (Z(KGRID) >  WC%VEG_HEIGHT .AND. Z(KGRID-1) < WC%VEG_HEIGHT) VEG_DRAG(IIG,JJG,KGRID)= &
-!                      SF%VEG_DRAG_INI*(WC%VEG_HEIGHT-Z(KGRID-1))/(Z(KGRID)-Z(KGRID-1))
-!    ENDDO
-!   ENDIF
+!-- LS Drag (follows the method used for BF) varies with height above the terrain according to the fraction 
+!   of the grid cell occupied by veg
+!   veg height can be < or >= than grid cell height, drag is Reynolds number dependent when VEG_UNIT_DRAG_COEFF
+!   is FALSE.
+!   Implemented in velo.f90 
+!   KKG is the grid cell in the gas phase bordering the terrain (wall). For no terrain, KKG=1 along the "ground" 
+!   The Z() array is the height of the gas-phase cell. Z(0) = zmin for the current mesh 
+
+  LS_DRAG: IF (WC%VEG_HEIGHT > 0.0_EB) THEN
+ 
+    VEG_DRAG_RAMP_FCTR = 1.0_EB
+!   IF (T-T_BEGIN <= 5.0_EB) VEG_DRAG_RAMP_FCTR = 0.20_EB*(T-T_BEGIN)
+
+    DO KGRID=0,5
+      KLOC_GAS   = KKG + KGRID            !gas-phase grid index
+      ZLOC_GAS_T = Z(KLOC_GAS)  -Z(KKG-1) !height above terrain of gas-phase grid cell top
+      ZLOC_GAS_B = Z(KLOC_GAS-1)-Z(KKG-1) !height above terrain of gas-phase grid cell bottom
+
+      IF (ZLOC_GAS_T <= WC%VEG_HEIGHT) THEN !grid cell filled with veg
+        IF (.NOT. SF%VEG_UNIT_DRAG_COEFF) THEN
+          TMP_G = TMP(IIG,JJG,KLOC_GAS)
+          RHO_GAS  = RHO(IIG,JJG,KLOC_GAS)
+          ZZ_GET(1:N_TRACKED_SPECIES) = ZZ(IIG,JJG,KLOC_GAS,1:N_TRACKED_SPECIES)
+          CALL GET_VISCOSITY(ZZ_GET,MU_GAS,TMP_G)
+          U2 = 0.25*(U(IIG,JJG,KLOC_GAS)+U(IIG-1,JJG,KLOC_GAS))**2
+          V2 = 0.25*(V(IIG,JJG,KLOC_GAS)+V(IIG,JJG-1,KLOC_GAS))**2
+          RE_VEG_PART = 4._EB*RHO_GAS*SQRT(U2 + V2 + W(IIG,JJG,KLOC_GAS)**2)/SF%VEG_SV/MU_GAS !for cylinder particle
+          C_DRAG = 0.0_EB
+          IF (RE_VEG_PART > 0.0_EB) C_DRAG = DRAG(RE_VEG_PART,2) !2 is for cylinder, 1 is for sphere
+        ELSE
+          C_DRAG = 1.0_EB
+        ENDIF
+        VEG_DRAG(IIG,JJG,KGRID+1)= C_DRAG*SF%VEG_LSET_DRAG_INI*VEG_DRAG_RAMP_FCTR
+
+      ENDIF
+
+      IF (ZLOC_GAS_T >  WC%VEG_HEIGHT .AND. ZLOC_GAS_B < WC%VEG_HEIGHT) THEN !grid cell is partially filled with veg
+        IF (.NOT. SF%VEG_UNIT_DRAG_COEFF) THEN
+          TMP_G = TMP(IIG,JJG,KLOC_GAS)
+          RHO_GAS  = RHO(IIG,JJG,KLOC_GAS)
+          ZZ_GET(1:N_TRACKED_SPECIES) = ZZ(IIG,JJG,KLOC_GAS,1:N_TRACKED_SPECIES)
+          CALL GET_VISCOSITY(ZZ_GET,MU_GAS,TMP_G)
+          U2 = 0.25*(U(IIG,JJG,KLOC_GAS)+U(IIG-1,JJG,KLOC_GAS))**2
+          V2 = 0.25*(V(IIG,JJG,KLOC_GAS)+V(IIG,JJG-1,KLOC_GAS))**2
+          RE_VEG_PART = 4._EB*RHO_GAS*SQRT(U2 + V2 + W(IIG,JJG,KLOC_GAS)**2)/SF%VEG_SV/MU_GAS !for cylinder particle
+          C_DRAG = 0.0_EB
+          IF (RE_VEG_PART > 0.0_EB) C_DRAG = DRAG(RE_VEG_PART,2) !2 is for cylinder, 1 is for sphere
+        ELSE
+          C_DRAG = 1.0_EB
+        ENDIF
+        VEG_DRAG(IIG,JJG,KGRID+1)= &
+                   C_DRAG*SF%VEG_LSET_DRAG_INI*(WC%VEG_HEIGHT-ZLOC_GAS_B)*VEG_DRAG_RAMP_FCTR/(ZLOC_GAS_T-ZLOC_GAS_B)
+
+        IF (KGRID == 0) THEN !compute minimum drag based on user input
+         VEG_DRAG_MIN = C_DRAG*SF%VEG_LSET_DRAG_INI*SF%VEG_POSTFIRE_DRAG_FCTR*VEG_DRAG_RAMP_FCTR* &
+                          SF%VEG_HEIGHT/(ZLOC_GAS_T-ZLOC_GAS_B)
+         VEG_DRAG(IIG,JJG,1) = MAX(VEG_DRAG(IIG,JJG,1),VEG_DRAG_MIN)
+        ENDIF
+      ENDIF
+    ENDDO
+
+
+  ENDIF LS_DRAG
 
 !   IF (PHI_LS(IIG,JJG) <= SF%VEG_LSET_PHIDEPTH .AND. PHI_LS(IIG,JJG) >= -SF%VEG_LSET_PHIDEPTH) THEN 
 !    WC%TMP_F = 373._EB
