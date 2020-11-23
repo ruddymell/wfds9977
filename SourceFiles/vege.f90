@@ -1001,8 +1001,10 @@ TIME_SUBCYCLING_LOOP: DO IDT=1,NDT_CYCLES
 !Handle veg. fuel elements if element mass <= prescribed minimum
          IF (MPV_VEG <= MPV_VEG_MIN) THEN
            MPV_VEG = MPV_VEG_MIN
-           IF(PC%VEG_REMOVE_CHARRED .AND. .NOT. PC%VEG_CHAR_OXIDATION) & 
-            LP%R = 0.0001_EB*PC%KILL_RADIUS !fuel element will be removed
+           IF(PC%VEG_REMOVE_CHARRED .AND. .NOT. PC%VEG_CHAR_OXIDATION) THEN
+             IF(.NOT. PC%VEG_KEEP_FOR_SMV) LP%R = 0.0001_EB*PC%KILL_RADIUS !fuel element will be removed
+             IF(      PC%VEG_KEEP_FOR_SMV) LP%VEG_PACKING_RATIO = 0.0_EB !make drag,qc,qr=0 
+           ENDIF
          ENDIF
 !Enthalpy of fuel element volatiles using Cp,volatiles(T) from Ritchie
          H_SENS_VEG_VOLIT = 0.0445_EB*(TMP_VEG**1.5_EB - TMP_GAS**1.5_EB) - 0.136_EB*(TMP_VEG - TMP_GAS)
@@ -1049,7 +1051,8 @@ TIME_SUBCYCLING_LOOP: DO IDT=1,NDT_CYCLES
       IF (MPV_CHAR <= MPV_CHAR_MIN .AND. MPV_VEG <= MPV_VEG_MIN) THEN 
         CP_MASS_VEG_SOLID = MPV_ASH*CP_ASH
         LP%VEG_CHAR_MASS = 0.0_EB
-        IF(PC%VEG_REMOVE_CHARRED) LP%R = 0.0001_EB*PC%KILL_RADIUS
+        IF(PC%VEG_REMOVE_CHARRED .AND. .NOT. PC%VEG_KEEP_FOR_SMV) LP%R = 0.0001_EB*PC%KILL_RADIUS 
+        IF(PC%VEG_REMOVE_CHARRED .AND. PC%VEG_KEEP_FOR_SMV) LP%VEG_PACKING_RATIO = 0.0_EB !make drag,qc,qr 0 
       ENDIF
 
       Q_VEG_CHAR       = MPV_CHAR_LOSS*H_CHAR_VEG 
@@ -1120,7 +1123,10 @@ TIME_SUBCYCLING_LOOP: DO IDT=1,NDT_CYCLES
 !        MPV_VEG = MPV_VEG_MIN
          MPV_VEG = 0.0_EB
          CP_MASS_VEG_SOLID = CP_CHAR*MPV_CHAR + CP_ASH*MPV_ASH
-         IF(PC%VEG_REMOVE_CHARRED .AND. .NOT. PC%VEG_CHAR_OXIDATION) LP%R = 0.0001_EB*PC%KILL_RADIUS !remove part
+         IF(PC%VEG_REMOVE_CHARRED .AND. .NOT. PC%VEG_CHAR_OXIDATION) THEN
+           IF(.NOT. PC%VEG_KEEP_FOR_SMV) LP%R = 0.0001_EB*PC%KILL_RADIUS !remove part
+           IF(      PC%VEG_KEEP_FOR_SMV) LP%VEG_PACKING_RATIO = 0.0_EB   !make drag,qc,qr= 0
+         ENDIF
        ENDIF
 !Enthalpy of fuel element volatiles using Cp,volatiles(T) from Ritchie
        H_SENS_VEG_VOLIT = 0.0445_EB*(TMP_VEG**1.5_EB - TMP_GAS**1.5_EB) - 0.136_EB*(TMP_VEG - TMP_GAS)
@@ -1158,13 +1164,14 @@ TIME_SUBCYCLING_LOOP: DO IDT=1,NDT_CYCLES
 !      LP%VEG_SV     = PC%VEG_SV*(ORIG_PACKING_RATIO/LP%VEG_PACKING_RATIO)**0.333_EB 
 !      LP%VEG_KAPPA  = 0.25_EB*LP%VEG_SV*LP%VEG_PACKING_RATIO
 
-! Remove partical if char is fully consumed
+! Remove particle if char is fully consumed
        IF (MPV_CHAR <= MPV_CHAR_MIN .AND. MPV_VEG <= MPV_VEG_MIN) THEN 
 !        IF (MPV_ASH >= MPV_ASH_MAX .AND. MPV_VEG <= MPV_VEG_MIN) THEN 
 !        CP_MASS_VEG_SOLID = CP_CHAR*MPV_CHAR_MIN
          CP_MASS_VEG_SOLID = CP_ASH*MPV_ASH
          LP%VEG_CHAR_MASS = 0.0_EB
-         IF(PC%VEG_REMOVE_CHARRED) LP%R = 0.0001_EB*PC%KILL_RADIUS !fuel element will be removed
+         IF(PC%VEG_REMOVE_CHARRED .AND. .NOT. PC%VEG_KEEP_FOR_SMV) LP%R = 0.0001_EB*PC%KILL_RADIUS 
+         IF(PC%VEG_REMOVE_CHARRED .AND. PC%VEG_KEEP_FOR_SMV) LP%VEG_PACKING_RATIO = 0.0_EB !make drag,qc,qr= 0 
        ENDIF
 !  ENDIF IF_CHAR_OXIDATION_2
 
@@ -3381,8 +3388,8 @@ UMF(I,J) = SQRT(U2MAGL**2 + V2MAGL**2)*60._EB !m/min place holder until proper W
 IF(LEVEL_SET_MODE /= 5) THEN 
 
 !Use instantaneous umag in empirical ROS vs umag equation
-! UMAG = SQRT(U2MAGL**2 + V2MAGL**2)
-! ROS_HEAD_SURF(I,J)  = 0.099_EB + 0.095_EB*UMAG + 0.0025_EB*UMAG**2
+  UMAG = SQRT(U2MAGL**2 + V2MAGL**2)
+  ROS_HEAD_SURF(I,J)  = 0.099_EB + 0.095_EB*UMAG + 0.0025_EB*UMAG**2
 
 !Find time average of Umag and use in emprical ROS vs umag equation
   U_LS_AVG(I,J)  = U_LS_AVG(I,J) + U2MAGL

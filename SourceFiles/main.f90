@@ -104,7 +104,7 @@ WALL_CLOCK_START = WALL_CLOCK_TIME()
 ! Assign a compilation date (All Nodes)
 
 WRITE(VERSION_STRING,'(A)') '6.0.0' 
-COMPILE_DATE = 'October 9, 2020'
+COMPILE_DATE = 'November 23, 2020'
 
 IF (INDEX(mainrev,':',BACK=.TRUE.)>0) THEN
    WRITE(REVISION_DATE,'(A)',IOSTAT=IOS,ERR=5) mainrev(INDEX(mainrev,':')+1:LEN_TRIM(mainrev)-2)
