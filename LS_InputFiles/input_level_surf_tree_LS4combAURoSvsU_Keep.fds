@@ -10,6 +10,7 @@ If the temperature of the fuel element is chosen for display (i.e., QUANTITIES='
 will show the temperature of the fuel element at the time it was fully consumed. The moisture of the tree needles is made artifically low
 in order to ensure there is full consumption in parts of a tree.
 
+
 &HEAD CHID='LSsurf_FEtree_LS4combAURoSvsU_dx1', TITLE='Level Set4 simulation for level terrain, grass, tree, gas phase combustion' /
 
 &MISC TERRAIN_CASE=.TRUE.,
