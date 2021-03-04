@@ -3,12 +3,12 @@
 &TIME T_END=61 / 
 &DUMP DT_SLCF=1,DT_BNDF=1,SMOKE3D=.TRUE. / 
 
-- 1 mesh
+- 1 mesh 50m x 50m x 50m domain, 1m x,y grid cells, 0.5m z grid cells
 cMESH IJK=50,50,50, XB=0,50,-25,25,0,25 /
 cTRNZ IDERIV=1,CC=0.,PC=0.5,MESH_NUMBER=1 /
 cTRNZ IDERIV=2,CC=0.,PC=0.0,MESH_NUMBER=1 /
 
-- 2 meshes
+- 2 meshes 50m x 50m x 50m domain, 1m x,y grid cells, 0.5m z grid cells
 &MESH IJK=50,25,25, XB=0,50,-25, 0,0,25 /
 &MESH IJK=50,25,25, XB=0,50,  0,25,0,25 /
 cTRNZ IDERIV=1,CC=0.,PC=0.5,MESH_NUMBER=1 /
@@ -27,7 +27,6 @@ cTRNZ IDERIV=2,CC=0.,PC=0.0,MESH_NUMBER=2 /
       HEAT_OF_COMBUSTION = 17700 /
 
 &SPEC ID='WATER VAPOR' /
-&SPEC ID='CARBON DIOXIDE'/
 
 - Grass properties AU C064
 &SURF ID        = 'GRASS'
@@ -72,8 +71,13 @@ AU F19
 &VENT XB=5,6,-15,15,0,0,SURF_ID='IGN FIRE0' / upwind of hill
 
 
--- Grass on flat 
+-- Grass on burn plot
 &VENT XB=0,45,-20,20,0,0,SURF_ID='GRASS' /
+
+-- Non burnable grass bordering burn plot
+&VENT XB= 0,50,-25,-20,0,0,SURF_ID='NO BURN GRASS' /
+&VENT XB= 0,50, 20, 25,0,0,SURF_ID='NO BURN GRASS' /
+&VENT XB=45,50,-20, 20,0,0,SURF_ID='NO BURN GRASS' /
 
 -- Boundary conditions
 cSURF ID='WIND',VEL=-5 /
