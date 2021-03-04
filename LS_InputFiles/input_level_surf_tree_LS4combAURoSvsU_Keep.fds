@@ -5,11 +5,10 @@ The parameters U_Z0_UATM,Z0_UATM,PLE_UATM in the MISC namelist are used to defin
 throughout the domain (note that the wind parameters at the inflow boundary also need to be set with ramp parameter that start the
 inflow at t = 0).
 
-The parameter VEG_KEEP_FOR_SMV=.TRUE. on the PART namelist line keeps the fully consumed fuel element particle for display by smokeview.
+The parameter VEG_KEEP_FOR_SMV=.TRUE. on the PART namelist line keeps the fully consumed fuel element particle in the particle output
+file for display by smokeview.
 If the temperature of the fuel element is chosen for display (i.e., QUANTITIES='VEG_TEMPERATURE' on the PART namelist), then Smokeview
-will show the temperature of the fuel element at the time it was fully consumed. The moisture of the tree needles is made artifically low
-in order to ensure there is full consumption in parts of a tree.
-
+will show the temperature of the fuel element at the time it was fully consumed.
 
 &HEAD CHID='LSsurf_FEtree_LS4combAURoSvsU_dx1', TITLE='Level Set4 simulation for level terrain, grass, tree, gas phase combustion' /
 
