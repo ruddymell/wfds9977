@@ -4167,7 +4167,7 @@ VEG_LOOP: DO NN=1,N_TREES_0
    PARTICLE_FILE=.TRUE.
 !
    IF (LABEL == 'null') THEN
-     VEG_LABELS(N) = 'no_veg_data_ouput'
+     VEG_LABELS(N) = 'no_veg_data_output'
    ELSE
      VEG_LABELS(N) = LABEL
    ENDIF

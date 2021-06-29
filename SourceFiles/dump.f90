@@ -344,12 +344,13 @@ DO N=1,N_PROF
    WRITE(FN_PROF(N),CFORM) TRIM(CHID),'_prof_',N,'.csv'
 ENDDO
 
-! Vegetation File(s) for Fuel Element model
+! Vegetation File(s) names for Fuel Element model
 IF (N_TREES_OUT > 0) THEN
   N_TREE = 0
   ALLOCATE(LU_VEG_OUT(N_TREES_OUT))
   ALLOCATE(FN_VEG_OUT(N_TREES_OUT))
   DO N = 1,N_TREES 
+    IF (VEG_LABELS(N) == 'no_veg_data_output') CYCLE
     N_TREE = N_TREE_OUT(N)
     IF (N_TREE /= 0) THEN
       LU_VEG_OUT(N_TREE) = GET_FILE_NUMBER()
@@ -645,6 +646,7 @@ ENDIF
 ! Open vegetation ouput files(s) for Fuel Element model
 
 DO N=1,N_TREES_OUT 
+ IF (VEG_LABELS(N) == 'no_veg_data_output') CYCLE
  IF (APPEND) THEN
     OPEN(LU_VEG_OUT(N),FILE=FN_VEG_OUT(N),FORM='FORMATTED',STATUS='OLD',POSITION='APPEND')
  ELSE
@@ -3319,7 +3321,8 @@ PARTICLE_CLASS_LOOP: DO N=1,N_PART
       IF (.NOT.LP%SHOW .OR. IPC/=N) CYCLE LOAD_LOOP
       NPP = NPP + 1
       IF (NPP > NPLIM) EXIT LOAD_LOOP
-      TA(NPP) = LP%TAG
+!     TA(NPP) = LP%TAG
+      TA(NPP) = LP%VEG_N_TREE_OUTPUT !set tag to tree number
       XP(NPP) = LP%X
       YP(NPP) = LP%Y
       ZP(NPP) = LP%Z
@@ -6687,6 +6690,7 @@ DO N=1,N_CTRL_FILES
 ENDDO
 
 DO N=1,N_TREES_OUT
+   IF (VEG_LABELS(N) == 'no_veg_data_output') CYCLE
    CLOSE(LU_VEG_OUT(N))
    OPEN(LU_VEG_OUT(N),FILE=FN_VEG_OUT(N),FORM='FORMATTED', STATUS='OLD',POSITION='APPEND')
 ENDDO

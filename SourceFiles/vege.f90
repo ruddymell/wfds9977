@@ -122,7 +122,8 @@ TREE_LOOP: DO NCT=1,N_TREES
          ENDIF
          LP=>PARTICLE(NLP)
          LP%VEG_VOLFRACTION = 1._EB
-         LP%TAG = PARTICLE_TAG
+!        LP%TAG = PARTICLE_TAG
+         LP%TAG = NCT !added to assign a number to each &TREE with OUTPUT=T
          LP%X = REAL(NXB,EB)
          LP%Y = REAL(NYB,EB)
          LP%Z = REAL(NZB,EB)
@@ -181,7 +182,8 @@ TREE_LOOP: DO NCT=1,N_TREES
          ENDIF
          LP=>PARTICLE(NLP)
          LP%VEG_VOLFRACTION = 1._EB
-         LP%TAG = PARTICLE_TAG
+!        LP%TAG = PARTICLE_TAG
+         LP%TAG = NCT !added to assign a number to each &TREE with OUTPUT=T
          LP%X = REAL(NXB,EB)
          LP%Y = REAL(NYB,EB)
          LP%Z = REAL(NZB,EB)
@@ -230,7 +232,8 @@ TREE_LOOP: DO NCT=1,N_TREES
          ENDIF
          LP=>PARTICLE(NLP)
          LP%VEG_VOLFRACTION = 1._EB
-         LP%TAG = PARTICLE_TAG
+!        LP%TAG = PARTICLE_TAG
+         LP%TAG = NCT !added to assign a number to each &TREE with OUTPUT=T
          LP%X = REAL(NXB,EB)
          LP%Y = REAL(NYB,EB)
          LP%Z = REAL(NZB,EB)
@@ -289,7 +292,8 @@ TREE_LOOP: DO NCT=1,N_TREES
                 ENDIF
                 LP=>PARTICLE(NLP)
                 LP%VEG_VOLFRACTION = 1._EB
-                LP%TAG = PARTICLE_TAG
+!               LP%TAG = PARTICLE_TAG
+                LP%TAG = NCT !added to assign a number to each &TREE with OUTPUT=T
                 LP%X = REAL(NXB,EB)
                 LP%Y = REAL(NYB,EB)
                 LP%Z = REAL(NZB,EB)
@@ -408,7 +412,8 @@ TREE_LOOP: DO NCT=1,N_TREES
              ENDIF
              LP=>PARTICLE(NLP)
              LP%VEG_VOLFRACTION = 1._EB
-             LP%TAG = PARTICLE_TAG
+!            LP%TAG = PARTICLE_TAG
+             LP%TAG = NCT !added to assign a number to each &TREE with OUTPUT=T
              LP%X = REAL(NXB,EB)
              LP%Y = REAL(NYB,EB)
              LP%Z = REAL(NZB,EB)
@@ -2733,7 +2738,7 @@ LSET_INIT_WALL_CELL_LOOP: DO IW=1,N_EXTERNAL_WALL_CELLS+N_INTERNAL_WALL_CELLS
 
 ! Ignite landscape at user specified location if ignition is at time zero
   IF (SF%VEG_LSET_IGNITE_TIME == 0.0_EB .AND. T_BEGIN >= 0._EB) THEN 
-!print '(A,ES12.4,1x,3I)','veg:LS lset_ignite_time,iig,jjg ',sf%veg_lset_ignite_time,iig,jjg
+!print '(A,ES12.4,1x,3I)','veg1:LS lset_ignite_time,iig,jjg ',sf%veg_lset_ignite_time,iig,jjg
     PHI_LS(IIG,JJG) = PHI_MAX_LS 
     BURN_TIME_LS(IIG,JJG) = 99999.0_EB
 !   IF (SF%HRRPUA > 0.0_EB) THEN !mimic burner
@@ -3363,8 +3368,51 @@ ENDIF
 !
 ! --- Use user supplied grid index to specifiy U2MAGL
 IF (UAVG_K /= -1) THEN
+
+!Unaveraged velocity components at k=UAVG_K
   U2MAGL = U(I,J,UAVG_K)
   V2MAGL = V(I,J,UAVG_K)
+
+! U2MAGL = 0.5_EB*(U(I,J,2) + U(I,J,3))
+! V2MAGL = 0.5_EB*(V(I,J,2) + V(I,J,3))
+
+!4 point horizontal average of U at k=UAVG_K where UAVG_K is specifice in the input file
+! U2MAGL = 0.25_EB*( U(I-1,J,UAVG_K) + U(I,J+1,UAVG_K) + U(I+1,J,UAVG_K) + U(I,J-1,UAVG_K) )
+! V2MAGL = 0.25_EB*( V(I-1,J,UAVG_K) + V(I,J+1,UAVG_K) + V(I+1,J,UAVG_K) + V(I,J-1,UAVG_K) )
+
+!1/2 of 4 point horizontal average of U at k=UAVG_K where UAVG_K is specifice in the input file
+! U2MAGL = 0.5_EB*0.25_EB*( U(I-1,J,UAVG_K) + U(I,J+1,UAVG_K) + U(I+1,J,UAVG_K) + U(I,J-1,UAVG_K) )
+! V2MAGL = 0.5_EB*0.25_EB*( V(I-1,J,UAVG_K) + V(I,J+1,UAVG_K) + V(I+1,J,UAVG_K) + V(I,J-1,UAVG_K) )
+
+!1/2 of 5 point horizontal average of U at k=UAVG_K where UAVG_K is specified in the input file
+! U2MAGL = 0.5_EB*(0.5_EB*(0.25_EB*( U(I-1,J,UAVG_K) + U(I,J+1,UAVG_K) + U(I+1,J,UAVG_K) + U(I,J-1,UAVG_K) ) + &
+!                         U(I,J,UAVG_K)) )
+! V2MAGL = 0.5_EB*(0.5_EB*(0.25_EB*( V(I-1,J,UAVG_K) + V(I,J+1,UAVG_K) + V(I+1,J,UAVG_K) + V(I,J-1,UAVG_K) ) + &
+!                         V(I,J,UAVG_K)) )
+
+!4 point horizontal average of 1/2 (U(k=2)+U(k=3)), i.e., velocity component at z=2m on a dz=1m grid
+! U2MAGL = 0.5_EB*0.25_EB*( U(I-1,J,2)+U(I-1,J,3) + U(I,J+1,2)+U(I,J+1,3) + U(I+1,J,2)+U(I+1,J,3) + &
+!                   U(I,J-1,2)+U(I,J-1,3) )
+! V2MAGL = 0.5_EB*0.25_EB*( V(I-1,J,2)+V(I-1,J,3) + V(I,J+1,2)+V(I,J+1,3) + V(I+1,J,2)+V(I+1,J,3) + &
+!                   V(I,J-1,2)+V(I,J-1,3) )
+
+!4 point horizontal average of (2/3)*U(k=1)+(1/3)*U(k=2)), i.e., velocity component at z=2m on a dz=2m grid
+! U2MAGL = 0.25_EB*( 0.666_EB*U(I-1,J,1)+0.333_EB*U(I-1,J,2) + 0.666_EB*U(I,J+1,1)+0.333_EB*U(I,J+1,2) + &
+!                    0.666_EB*U(I+1,J,1)+0.333_EB*U(I+1,J,2) + 0.666_EB*U(I,J-1,1)+0.333_EB*U(I,J-1,2) )
+! V2MAGL = 0.25_EB*( 0.666_EB*V(I-1,J,1)+0.333_EB*V(I-1,J,2) + 0.666_EB*V(I,J+1,1)+0.333_EB*V(I,J+1,2) + &
+!                    0.666_EB*V(I+1,J,1)+0.333_EB*V(I+1,J,2) + 0.666_EB*V(I,J-1,1)+0.333_EB*V(I,J-1,2) )
+
+ENDIF
+
+! -- Use U0,V0 to define THETA_ELPS. This is need for LS5 when the ambient wind speed is zero 
+!    because the local, fire generated, winds will result in a fire that does not spread as 
+!    observed (e.g., back or flank instead of head)
+!    Other wise VEG_LSET_UAVG_K needs to be set. 
+IF (LEVEL_SET_MODE == 5) THEN 
+  IF (U0 /= 0.0_EB .OR. V0 /= 0.0_EB) THEN
+    U2MAGL = U0
+    V2MAGL = V0
+  ENDIF
 ENDIF
 
 !Theta_elps, after adjustment below, is angle of direction (0 to 2pi) of highest spread rate
@@ -3372,9 +3420,9 @@ ENDIF
 !counterclockwise direction, between the positive x-axis and the line through (0,0) and (x,y)
 !positive x-axis  
 
-!Note, unlike the Rothermel ROS case, the slope is assumed to be zero at this point.
+!Note, unlike the Rothermel ROS case, the slope is assumed to be zero at this point in code development.
 THETA_ELPS(I,J) = ATAN2(V2MAGL,U2MAGL)
-        
+
 !The following two lines convert ATAN2 output to compass system (0 to 2 pi CW from +Y-axis)
 THETA_ELPS(I,J) = PIO2 - THETA_ELPS(I,J)
 IF (THETA_ELPS(I,J) < 0.0_EB) THETA_ELPS(I,J) = 2.0_EB*PI + THETA_ELPS(I,J)
@@ -3741,10 +3789,12 @@ DO WHILE (TIME_LS < T_FINAL)
   
 !-Ignite landscape at user specified location(s) and time(s) to originate Level Set fire front propagation
   IF (SF%VEG_LSET_IGNITE_TIME > 0.0_EB .AND. SF%VEG_LSET_IGNITE_TIME < DT_LS .AND. T_CFD >= 0._EB) THEN
+!print '(A,ES12.4,1x,3I)','veg2:LS lset_ignite_time,iig,jjg ',sf%veg_lset_ignite_time,iig,jjg
     PHI_LS(IIG,JJG) = PHI_MAX_LS 
     BURN_TIME_LS(IIG,JJG) = 99999.0_EB
   ENDIF
   IF (SF%VEG_LSET_IGNITE_TIME >= TIME_LS .AND. SF%VEG_LSET_IGNITE_TIME <= TIME_LS + DT_LS .AND. T_CFD >= 0._EB) THEN 
+!print '(A,ES12.4,1x,3I)','veg3:LS lset_ignite_time,iig,jjg ',sf%veg_lset_ignite_time,iig,jjg
     PHI_LS(IIG,JJG) = PHI_MAX_LS 
     BURN_TIME_LS(IIG,JJG) = 99999.0_EB
   ENDIF
@@ -3992,6 +4042,7 @@ DO WHILE (TIME_LS < T_FINAL)
     IF (SF%VEG_LSET_SURFACE_HRRPUA) THEN
       I_FUEL = REACTION(1)%FUEL_SMIX_INDEX
       WC%MASSFLUX(I_FUEL)      = -WC%VEG_LSET_SURFACE_HEATFLUX/SF%VEG_LSET_HEAT_OF_COMBUSTION 
+!     WC%MASSFLUX(I_FUEL)      = 0.0_EB !temporaroy
 !     WC%ONE_D%MASSFLUX_SPEC(I_FUEL) =  WC%ONE_D%MASSFLUX(I_FUEL) !used in WFDS6
     ENDIF
     IF (VEG_LEVEL_SET_SURFACE_HEATFLUX) WC%QCONF = WC%VEG_LSET_SURFACE_HEATFLUX
@@ -4247,6 +4298,10 @@ ENDIF
     HRRPUA_OUT(0,0:JBAR) = HRRPUA_OUT(1,0:JBAR) ; HRRPUA_OUT(0:IBAR,0) = HRRPUA_OUT(0:IBAR,1) !for Smokeview
     WRITE(LU_SLCF_LS(5)) ((HRRPUA_OUT(I,J),I=0,IBAR),J=0,JBAR) 
   ENDIF
+
+!-- temporary output of total HRR so it's available for LS1. Works only for a single grid
+!  write(1234,'(1x,2ES12.4)')TIME_LS,SUM(HRRPUA_OUT)*1.  
+
 !-- Crown fire Probability (Cruz & Alexander)
   IF(VEG_LEVEL_SET_CFIS_CROWNFIRE_MODEL) THEN
     WRITE(LU_SLCF_LS(6)) TIME_LS_OUT
@@ -4532,6 +4587,8 @@ FLUX_ILOOP: DO I = 1,NX_LS
        ELSE
         DENOM = 0._EB
        ENDIF
+
+!WRITE(LU_OUTPUT,'(A,1x,2I3,8ES12.4)')'vege: i,j',i,j,denom,a_elps2,cos_theta,bros,b_elps2,sin_theta,aros,c_elps
        
 !  
 !This is with A_ELPS2 and B_ELPS2 notation consistent with Finney and Richards and in final LS vs FS paper
@@ -4551,7 +4608,6 @@ FLUX_ILOOP: DO I = 1,NX_LS
         !    SR_Y_LS_P(I,J) = ROS_HEAD_P(I,J) * NORMAL_FIRELINE(2)
         
        !ENDIF  
-
        
        ! Project spread rates from slope to horizontal plane
        
@@ -4559,7 +4615,6 @@ FLUX_ILOOP: DO I = 1,NX_LS
        IF (ABS(DZTDY(I,J)) > 0._EB) SR_Y_LS_P(I,J) = SR_Y_LS_P(I,J) * ABS(COS(ATAN(DZTDY(I,J))))
        
        MAG_SR = SQRT(SR_X_LS_P(I,J)**2 + SR_Y_LS_P(I,J)**2)   
-!WRITE(LU_OUTPUT,*)'vege levelset ros: i,j,mag_sr',i,j,mag_sr
    
    ELSE !McArthur Spread Model
         
