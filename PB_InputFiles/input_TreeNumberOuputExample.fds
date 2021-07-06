@@ -1,0 +1,85 @@
+&HEAD CHID='TreeNumberInPartFile', TITLE='Example of wfds9977 output of tree number in particle file' /
+
+-- 1 meshe
+cMESH IJK=20,20,10, XB=-1,1,-1,1, 0, 1 / 
+
+-- 4 meshes
+&MULT ID='block',DX=1,DY=1,DZ=1,I_LOWER=0,I_UPPER=1,J_LOWER=0,J_UPPER=1,K_LOWER=0,K_UPPER=0 /
+&MESH IJK=10,10,10, XB=-1,0,-1,0, 0, 1,MULT_ID='block' / 
+
+&REAC ID='WOOD'
+      FUEL='WOOD PYRO'
+      FYI='Ritchie, et al., 5th IAFSS, C_3.4 H_6.2 O_2.5, dHc = 15MW/kg'
+      SOOT_YIELD = 0.02
+      O          = 2.5
+      C          = 3.4
+      H          = 6.2
+      HEAT_OF_COMBUSTION = 17700 /
+
+&SPEC ID='WATER VAPOR' /
+&SPEC ID='OXYGEN' /
+&SPEC ID='CARBON DIOXIDE' /
+
+&TIME T_END=5 / 
+
+
+-Tree vegetation
+
+&PART ID='needles',TREE=.TRUE.,QUANTITIES='VEG_TEMPERATURE','VEG_DRY_MASS'
+          VEG_INITIAL_TEMPERATURE=20.,
+          VEG_SV=3940.,VEG_MOISTURE=0.26,VEG_CHAR_FRACTION=0.25,
+          VEG_DRAG_CONSTANT=0.375,VEG_DENSITY=514.,VEG_BULK_DENSITY=1.21,
+          VEG_BURNING_RATE_MAX=999,VEG_DEHYDRATION_RATE_MAX=999,
+          VEG_DEGRADATION='LINEAR',VEG_HCONV_CYLLAM=.FALSE.,
+          VEG_REMOVE_CHARRED=.TRUE. /
+
+Tree number (i.e., the nuber 1) will be ouput to .prt5 files
+&TREE PART_ID='needles',XYZ=-0.5,0,0,FUEL_GEOM='CONE',
+      CROWN_WIDTH=0.5,CROWN_BASE_HEIGHT=0.1,TREE_HEIGHT=0.8,
+      OUTPUT_TREE=.TRUE.,LABEL='needles1' /
+
+No tree number will be output to .prt5 files
+&TREE PART_ID='needles',XYZ= 0.5,0,0,FUEL_GEOM='CONE',
+      CROWN_WIDTH=0.5,CROWN_BASE_HEIGHT=0.1,TREE_HEIGHT=0.8,
+      OUTPUT_TREE=F /
+
+Tree number (i.e., the number 2) will be output to the .prt5 and a file named
+Test_TreeNumberInPartFile_needles2_vegout.csv will be created with tree
+averaged quanities. 
+&TREE PART_ID='needles',XYZ= 0.5,0.5,0,FUEL_GEOM='CONE',
+      CROWN_WIDTH=0.5,CROWN_BASE_HEIGHT=0.1,TREE_HEIGHT=0.8,
+      OUTPUT_TREE=T,LABEL='needles2' /,
+
+Tree number (i.e., the number 3) will be output to the .prt5 and a file named
+Test_TreeNumberInPartFile_needles3_vegout.csv will be created with tree
+averaged quanities. The string PP_1 can be used in postprocessing as another 
+descripter of this TREE
+&TREE PART_ID='needles',XYZ=-0.5,-0.5,0,FUEL_GEOM='CONE',
+      CROWN_WIDTH=0.5,CROWN_BASE_HEIGHT=0.1,TREE_HEIGHT=0.8,
+      OUTPUT_TREE=T,LABEL='needles3',TREE_NAME='PP_1' /,
+
+
+-- 0-3mm roundwood 17% 1.5 mm
+&PART ID='0-3mm',TREE=.TRUE.,QUANTITIES='VEG_TEMPERATURE','VEG_DRY_MASS'
+          VEG_INITIAL_TEMPERATURE=20.,
+          VEG_SV=2667.,VEG_MOISTURE=0.26,VEG_CHAR_FRACTION=0.25,VEG_ASH_FRACTION=0.03,
+          VEG_DRAG_CONSTANT=0.375,VEG_DENSITY=514.,VEG_BULK_DENSITY=0.34,
+          VEG_BURNING_RATE_MAX=999,VEG_DEHYDRATION_RATE_MAX=999,
+          VEG_DEGRADATION='LINEAR',VEG_HCONV_CYLLAM=.TRUE.,
+          VEG_REMOVE_CHARRED=.TRUE. /
+cTREE PART_ID='0-3mm',XYZ=-0.5,0,0,FUEL_GEOM='CONE',
+      CROWN_WIDTH=0.5,CROWN_BASE_HEIGHT=0.1,TREE_HEIGHT=0.8,
+      OUTPUT_TREE=.TRUE.,LABEL='0-3mm' /
+
+--Boundary conditions
+&VENT MB = XMIN, SURF_ID = 'OPEN' /
+&VENT MB = XMAX, SURF_ID = 'OPEN' /
+&VENT MB = YMIN, SURF_ID = 'OPEN' /
+&VENT MB = YMAX, SURF_ID = 'OPEN' /
+&VENT MB = ZMAX, SURF_ID = 'OPEN' /
+
+&DUMP DT_SLCF=0.1,DT_ISOF=0.1,DT_PART=1,WRITE_XYZ=T /
+cSLCF PBY=0.0,QUANTITY='TEMPERATURE',VECTOR=.TRUE. /
+cISOF QUANTITY='TEMPERATURE',VALUE(1)=100. /
+
+&TAIL /
