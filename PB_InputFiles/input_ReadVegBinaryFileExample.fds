@@ -1,0 +1,40 @@
+Example input file in which a binaray file (filename is in MISC) contains the location, bulk density,
+and grid cell volume fraction of vegetation.
+These particle are associated with the TREE namelist lines that have TREE_IN_FILE=T. 
+All TREE namelist lines with TREE_IN_FILE=T must preceed other TREE namelists.
+
+&HEAD CHID='ExampleVegFromFile', TITLE='Example of wfds9977 reading in veg information from a binary file' /
+&MISC VEG_INPUT_FILENAME='output_veg.bin',WIND_ONLY=T /
+
+-- 1 mesh
+cMESH IJK=20,20,10, XB=-1,1,-1,1, 0, 1 / 
+
+-- 4 meshes
+&MULT ID='block',DX=1,DY=1,DZ=1,I_LOWER=0,I_UPPER=1,J_LOWER=0,J_UPPER=1,K_LOWER=0,K_UPPER=0 /
+&MESH IJK=10,10,10, XB=-1,0,-1,0, 0, 1,MULT_ID='block' / 
+
+&TIME T_END=5 / 
+
+-Vegetation
+
+&PART ID='needles_1',TREE=.TRUE.,QUANTITIES='VEG_TEMPERATURE','VEG_DRY_MASS'
+          VEG_INITIAL_TEMPERATURE=20.,
+          VEG_SV=3940.,VEG_MOISTURE=0.26,VEG_CHAR_FRACTION=0.25,
+          VEG_DRAG_CONSTANT=0.375,VEG_DENSITY=514.,VEG_BULK_DENSITY=1.21,
+          VEG_BURNING_RATE_MAX=0.3,VEG_DEHYDRATION_RATE_MAX=0.3,
+          VEG_DEGRADATION='LINEAR',VEG_HCONV_CYLLAM=.FALSE.,
+          VEG_REMOVE_CHARRED=.TRUE. /
+
+The location of particles and bulk density is read from file 'output_tree.bin' specified in MISC
+Material properties of the particles, other than bulk density, are defined in the referenced PART_ID
+Tree number is output in .prt5 files
+&TREE PART_ID='needles_1',OUTPUT_TREE=T,TREE_NAME='test_tree_1',TREE_IN_FILE=T /
+
+--Boundary conditions
+&VENT MB = XMIN, SURF_ID = 'OPEN' /
+&VENT MB = XMAX, SURF_ID = 'OPEN' /
+&VENT MB = YMIN, SURF_ID = 'OPEN' /
+&VENT MB = YMAX, SURF_ID = 'OPEN' /
+&VENT MB = ZMAX, SURF_ID = 'OPEN' /
+
+&TAIL /
