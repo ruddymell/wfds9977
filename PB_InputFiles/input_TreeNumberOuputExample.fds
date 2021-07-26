@@ -36,7 +36,7 @@ cMESH IJK=20,20,10, XB=-1,1,-1,1, 0, 1 /
 Tree number (i.e., the nuber 1) will be ouput to .prt5 files
 &TREE PART_ID='needles',XYZ=-0.5,0,0,FUEL_GEOM='CONE',
       CROWN_WIDTH=0.5,CROWN_BASE_HEIGHT=0.1,TREE_HEIGHT=0.8,
-      OUTPUT_TREE=.TRUE.,LABEL='needles1' /
+      OUTPUT_TREE=T,LABEL='needles1' /
 
 No tree number will be output to .prt5 files
 &TREE PART_ID='needles',XYZ= 0.5,0,0,FUEL_GEOM='CONE',
