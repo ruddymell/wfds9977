@@ -345,12 +345,12 @@ DO N=1,N_PROF
 ENDDO
 
 ! Vegetation File(s) names for Fuel Element model
-IF (N_TREES_OUT > 0) THEN
+IF (N_TREES_OUTPUT_DATA > 0) THEN
   N_TREE = 0
-  ALLOCATE(LU_VEG_OUT(N_TREES_OUT))
-  ALLOCATE(FN_VEG_OUT(N_TREES_OUT))
+  ALLOCATE(LU_VEG_OUT(N_TREES_OUTPUT_DATA))
+  ALLOCATE(FN_VEG_OUT(N_TREES_OUTPUT_DATA))
   DO N = 1,N_TREES 
-    IF (VEG_LABELS(N) == 'no_veg_data_output') CYCLE
+    IF (VEG_LABELS(N) == 'no_tree_data_output') CYCLE
     N_TREE = N_TREE_OUT(N)
     IF (N_TREE /= 0) THEN
       LU_VEG_OUT(N_TREE) = GET_FILE_NUMBER()
@@ -529,7 +529,7 @@ USE COMP_FUNCTIONS, ONLY: SECOND
 USE PHYSICAL_FUNCTIONS, ONLY: GET_MASS_FRACTION_ALL,GET_MOLECULAR_WEIGHT
 USE CONTROL_VARIABLES
 REAL(EB) :: TNOW
-INTEGER :: NN,I,N,N_OUT
+INTEGER :: NN,I,N,N_OUT,N_TREE
 CHARACTER(30), DIMENSION(42) :: LABEL='null'
 
 TNOW=SECOND() 
@@ -645,14 +645,17 @@ ENDIF
 
 ! Open vegetation ouput files(s) for Fuel Element model
 
-DO N=1,N_TREES_OUT 
- IF (VEG_LABELS(N) == 'no_veg_data_output') CYCLE
+!DO N=1,N_TREES_OUTPUT_DATA 
+DO N=1,N_TREES 
+ IF (VEG_LABELS(N) == 'no_tree_data_output') CYCLE
+ N_TREE = N_TREE_OUT(N)
+print*,'dump:N_TREE,LU_VEG_OUT,FN_VEG_OUT',n_tree,lu_veg_out(n_tree),fn_veg_out(n_tree)
  IF (APPEND) THEN
-    OPEN(LU_VEG_OUT(N),FILE=FN_VEG_OUT(N),FORM='FORMATTED',STATUS='OLD',POSITION='APPEND')
+    OPEN(LU_VEG_OUT(N_TREE),FILE=FN_VEG_OUT(N_TREE),FORM='FORMATTED',STATUS='OLD',POSITION='APPEND')
  ELSE
-    OPEN(LU_VEG_OUT(N),FILE=FN_VEG_OUT(N),FORM='FORMATTED',STATUS='REPLACE')
-    WRITE(LU_VEG_OUT(N),'(A,A,A,A,A,A,A,A,A,A,A)')'s, ','C, ','C, ','kg, ','kg, ','kg, ','kg ','kW, ','kW, ','kg, ','kW,' 
-    WRITE(LU_VEG_OUT(N),'(A,A,A,A,A,A,A,A,A,A,A)')'Time, ','TreeAvgTempVeg, ','TreeAvgTempGas, ', &
+    OPEN(LU_VEG_OUT(N_TREE),FILE=FN_VEG_OUT(N_TREE),FORM='FORMATTED',STATUS='REPLACE')
+    WRITE(LU_VEG_OUT(N_TREE),'(A,A,A,A,A,A,A,A,A,A,A)')'s, ','C, ','C, ','kg, ','kg, ','kg, ','kg ','kW, ','kW, ','kg, ','kW,' 
+    WRITE(LU_VEG_OUT(N_TREE),'(A,A,A,A,A,A,A,A,A,A,A)')'Time, ','TreeAvgTempVeg, ','TreeAvgTempGas, ', &
                                              'Total_Tree_Dry_Mass, ', 'Total_Tree_Moist_Mass, ', &
                                              'Total_Tree_Char_Mass, ','Total_Tree_Ash_Mass, ', &
                                              'TreeAvg_int_div(qveg_conv)dVe, ','TreeAvg_int_div(qveg_rad)dVe, ', &
@@ -3322,7 +3325,7 @@ PARTICLE_CLASS_LOOP: DO N=1,N_PART
       NPP = NPP + 1
       IF (NPP > NPLIM) EXIT LOAD_LOOP
 !     TA(NPP) = LP%TAG
-      TA(NPP) = LP%VEG_N_TREE_OUTPUT !set tag to tree number
+      TA(NPP) = LP%VEG_N_TREE_PRT_OUTPUT !set tag to tree number
       XP(NPP) = LP%X
       YP(NPP) = LP%Y
       ZP(NPP) = LP%Z
@@ -6129,7 +6132,8 @@ END SUBROUTINE DUMP_HRR
 SUBROUTINE DUMP_VEG(T)
 
 ! --- temporary (place holder) ouput routine
-! Write out total dry and moisture mass in vegetation (fuel element model)
+! Write out tree based quantities (fuel element model). These quanitites are output for &TREE
+! with OUTPUT_TREE=T and LABEL specified.
  
 REAL(EB), INTENT(IN) :: T
 REAL(EB) :: NPRTS_TREE
@@ -6140,7 +6144,7 @@ LOGICAL :: VEG_PRESENT
 VEG_PRESENT = .FALSE.
 STIME      = T_BEGIN + (T-T_BEGIN)*TIME_SHRINK_FACTOR
 
-IF (N_TREES_OUT == 0) RETURN
+IF (N_TREES_OUTPUT_DATA == 0) RETURN
 
 TREE_OUTPUT_DATA_TOTAL = 0._EB
 
@@ -6149,7 +6153,7 @@ MESH_LOOP: DO NM=1,NMESHES
   IF (.NOT. TREE_MESH_OUT(NM)) CYCLE MESH_LOOP 
    VEG_PRESENT = .TRUE.
 !  R_SVxPR = 1.0_EB/PC%VEG_SV*LP%VEG_PACKING_RATIO
-   DO N_TREE = 1, N_TREES_OUT
+   DO N_TREE = 1, N_TREES_OUTPUT_DATA
     TREE_OUTPUT_DATA_TOTAL(N_TREE,1) = TREE_OUTPUT_DATA_TOTAL(N_TREE,1) + TREE_OUTPUT_DATA(N_TREE,1,NM) !C veg
     TREE_OUTPUT_DATA_TOTAL(N_TREE,2) = TREE_OUTPUT_DATA_TOTAL(N_TREE,2) + TREE_OUTPUT_DATA(N_TREE,2,NM) !C gas
     TREE_OUTPUT_DATA_TOTAL(N_TREE,3) = TREE_OUTPUT_DATA_TOTAL(N_TREE,3) + TREE_OUTPUT_DATA(N_TREE,3,NM) !kg veg fuel
@@ -6166,7 +6170,7 @@ MESH_LOOP: DO NM=1,NMESHES
 ENDDO MESH_LOOP
  
 IF (VEG_PRESENT) THEN
- DO I=1,N_TREES_OUT
+ DO I=1,N_TREES_OUTPUT_DATA
   NPRTS_TREE = TREE_OUTPUT_DATA_TOTAL(I,9) !# particles in tree
   IF (NPRTS_TREE == 0) THEN
     NPRTS_TREE = 1
@@ -6689,8 +6693,8 @@ DO N=1,N_CTRL_FILES
    OPEN(LU_CTRL(N),FILE=FN_CTRL(N),FORM='FORMATTED', STATUS='OLD',POSITION='APPEND')
 ENDDO
 
-DO N=1,N_TREES_OUT
-   IF (VEG_LABELS(N) == 'no_veg_data_output') CYCLE
+DO N=1,N_TREES_OUTPUT_DATA
+   IF (VEG_LABELS(N) == 'no_tree_data_output') CYCLE
    CLOSE(LU_VEG_OUT(N))
    OPEN(LU_VEG_OUT(N),FILE=FN_VEG_OUT(N),FORM='FORMATTED', STATUS='OLD',POSITION='APPEND')
 ENDDO

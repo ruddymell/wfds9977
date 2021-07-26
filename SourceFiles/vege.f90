@@ -12,7 +12,8 @@ IMPLICIT NONE
 PRIVATE
 PUBLIC INITIALIZE_LEVEL_SET_FIREFRONT,LEVEL_SET_FIREFRONT_PROPAGATION,END_LEVEL_SET,INITIALIZE_RAISED_VEG, &
        DEALLOCATE_VEG_ARRAYS,RAISED_VEG_MASS_ENERGY_TRANSFER,GET_REV_vege, &
-       BNDRY_VEG_MASS_ENERGY_TRANSFER,LEVEL_SET_BC,LEVEL_SET_DT,READ_BRNR
+       BNDRY_VEG_MASS_ENERGY_TRANSFER,LEVEL_SET_BC,LEVEL_SET_DT,READ_BRNR,INITIALIZE_RAISED_VEG_FROM_FILE, &
+       CREATE_RAISED_VEG_FILE,INITIALIZE_RAISED_VEG_FROM_FILE_2
 TYPE (PARTICLE_TYPE), POINTER :: LP=>NULL()
 TYPE (PARTICLE_CLASS_TYPE), POINTER :: PC=>NULL()
 !TYPE (WALL_TYPE), POINTER :: WC
@@ -36,6 +37,257 @@ REAL(EB) :: B_ROTH,BETA_OP_ROTH,C_ROTH,E_ROTH
 !REAL(EB) :: NX_LS,NY_LX,PHI_MIN_LS,PHI_MAX_LS
 
 CONTAINS
+
+SUBROUTINE INITIALIZE_RAISED_VEG_FROM_FILE(NM)
+!Outer loop in over meshes to facilitate the identification of multiply occupied grid cells
+!Read in, for each TREE, the TREE_NAME, number of particle classes, PART_ID, 
+!number of grid cells occupied by the tree, and the x,y,z coordinates and bulk density
+!for each grid cell
+
+USE MEMORY_FUNCTIONS, ONLY: RE_ALLOCATE_PARTICLES
+USE TRAN, ONLY: GET_IJK
+INTEGER, INTENT(IN) :: NM
+INTEGER:: II,JJ,KK,ITREE,IPC,NPART_CLASS,NCELL
+INTEGER:: NVOX ! number of voxels for each tree
+CHARACTER(30) :: TREE_NAME,PART_ID
+REAL(EB) :: X,Y,Z,XI,YJ,ZK,BULK_DENSITY,GRID_CELL_VOLUME_FRACTION
+LOGICAL  :: CELL_TAKEN
+
+IF (VEG_INPUT_FILENAME == 'null') RETURN
+
+!OPEN(UNIT=9137,FILE=VEG_INPUT_FILENAME,FORM='UNFORMATTED',STATUS='OLD')
+
+!DO_MESH: DO NM=1,NMESHES
+
+!print*,'read in binary file, total n_trees, nm = ',n_trees,nm
+
+   CALL POINT_TO_MESH(NM)
+   ALLOCATE(VEG_PRESENT_FLAG(0:IBP1,0:JBP1,0:KBP1))
+   CALL ChkMemErr('VEGE','VEG_PRESENT_FLAG',IZERO)
+
+  TREE_LOOP: DO ITREE = 1, N_TREES 
+
+   VEG_PRESENT_FLAG = .FALSE.
+
+   IF (N_TREE_IN_FILE(ITREE) == 0) CYCLE TREE_LOOP
+   READ(9137) TREE_NAME
+!print*,'vege:Tree Name=',TREE_NAME
+   READ(9137) PART_ID
+!print*,'PART_ID= ',PART_ID
+   READ(9137) NVOX
+!printe*,'vege:NUMBER OF VOXELS= ',NVOX
+
+   NCELL_LOOP: DO NCELL=1,NVOX
+
+     READ(9137) X,Y,Z,BULK_DENSITY,GRID_CELL_VOLUME_FRACTION
+     CALL GET_IJK(X,Y,Z,NM,XI,YJ,ZK,II,JJ,KK)
+     IPC = TREE_PARTICLE_CLASS(ITREE)
+     PC=>PARTICLE_CLASS(IPC)
+!print'(A,1x,4I5,5ES13.4)','veg:nm,itree,nlp,ipc,x,y,z,volfrac,rhob', &
+!      nm,itree,nlp,ipc,x,y,z,grid_cell_volume_fraction,bulk_density
+     IF(MESHES(NM)%XS < X .AND. X < MESHES(NM)%XF .AND. &
+        MESHES(NM)%YS < Y .AND. Y < MESHES(NM)%YF .AND. &
+        MESHES(NM)%ZS < Z .AND. Z < MESHES(NM)%ZF) THEN 
+          TREE_MESH(NM) = .TRUE.
+          IF (VEG_PRESENT_FLAG(II,JJ,KK)) CYCLE NCELL_LOOP 
+          VEG_PRESENT_FLAG(II,JJ,KK) = .TRUE.
+          NLP  = NLP + 1
+          IF (NLP>NLPDIM) THEN
+            CALL RE_ALLOCATE_PARTICLES(1,NM,0,1000)
+            PARTICLE=>MESHES(NM)%PARTICLE
+          ENDIF
+          LP=>PARTICLE(NLP)
+          LP%X = X
+          LP%Y = Y
+          LP%Z = Z 
+          LP%VEG_VOLFRACTION = GRID_CELL_VOLUME_FRACTION
+          LP%SHOW = .TRUE.
+          LP%T = 0.
+          LP%U = 0.
+          LP%V = 0.
+          LP%W = 0.
+          LP%IOR = 0 !airborne static PARTICLE
+          IF (PC%DRAG_LAW == SPHERE_DRAG)   LP%R =  3./PC%VEG_SV
+          IF (PC%DRAG_LAW == CYLINDER_DRAG) LP%R =  2./PC%VEG_SV 
+          LP%VEG_FUEL_MASS     = BULK_DENSITY
+          LP%VEG_MOIST_MASS    = PC%VEG_MOISTURE*LP%VEG_FUEL_MASS
+          LP%VEG_CHAR_MASS     = 0.0_EB
+          LP%VEG_ASH_MASS      = 0.0_EB
+          LP%VEG_PACKING_RATIO = BULK_DENSITY/PC%VEG_DENSITY 
+          LP%VEG_SV            = PC%VEG_SV 
+          LP%VEG_KAPPA         = 0.25*PC%VEG_SV*PC%VEG_BULK_DENSITY/PC%VEG_DENSITY
+          LP%TMP               = PC%VEG_INITIAL_TEMPERATURE
+          LP%VEG_IGNITED       = .FALSE.
+          LP%IGNITOR           = .FALSE.
+          LP%VEG_EMISS         = 4._EB*SIGMA*LP%VEG_KAPPA*LP%TMP**4
+          LP%VEG_DIVQR         = 0.0_EB
+          LP%VEG_N_TREE_PRT_OUTPUT = N_TREE_FOR_PRT_FILE(ITREE)
+          LP%PWT               = 1._EB 
+          LP%CLASS             = IPC
+          PARTICLE_TAG         = PARTICLE_TAG + NMESHES
+          LP%TAG               = PARTICLE_TAG
+!print'(A,1x,5I3,5ES13.4,1L)','veg:nm,itree,nlp,ipc,lp% class,x,y,z,volfrac,rhob,tree_mesh(nm)', &
+!      nm,itree,nlp,ipc,lp%class,lp%x,lp%y,lp%z,lp%veg_volfraction,bulk_density,tree_mesh(nm)
+     ENDIF
+!print*,'vege:tree_mesh(:)',tree_mesh
+   ENDDO NCELL_LOOP
+  ENDDO TREE_LOOP
+  REWIND(9137)
+  DEALLOCATE(VEG_PRESENT_FLAG)
+!ENDDO DO_MESH
+
+CLOSE(9137)
+
+END SUBROUTINE INITIALIZE_RAISED_VEG_FROM_FILE
+
+!---------------------------------------------------------------------------
+
+SUBROUTINE CREATE_RAISED_VEG_FILE
+!Output raised vegetation to a binary file
+
+INTEGER  :: I,II,IPC,JJ,KK,NM,NCT,N_VEG_GRIDCELLS
+REAL(EB) :: XI,YJ,ZK
+
+IF (.NOT. CREATE_VEG_FILE) RETURN
+
+OPEN(8137,FILE=TRIM(CHID)//'_output_veg.bin',FORM='UNFORMATTED',STATUS='REPLACE')
+
+TREE_LOOP: DO NCT=1,N_TREES
+
+  WRITE(8137) VEG_TREE_NAME(NCT) 
+  IPC = TREE_PARTICLE_CLASS(NCT)
+  PC=>PARTICLE_CLASS(IPC)
+  WRITE(8137) PC%ID
+  N_VEG_GRIDCELLS = 0
+
+  MESH_LOOP_1: DO NM=1,NMESHES
+     CALL POINT_TO_MESH(NM)
+     PARTICLE_LOOP2: DO I=1,NLP !Count number of grid cells with veg for current tree
+       LP=>PARTICLE(I)
+       IF(LP%VEG_N_TREE_PRT_OUTPUT == NCT) N_VEG_GRIDCELLS = N_VEG_GRIDCELLS + 1
+     ENDDO PARTICLE_LOOP2
+!print'(A,1x,2I5,2A,2I5)','ntree,nm,tree_name,part_id,nlp,n_voxels',&
+!                          nct,nm,veg_tree_name(nct),pc%id,nlp,n_veg_gridcells
+  ENDDO MESH_LOOP_1 
+ 
+  WRITE(8137) N_VEG_GRIDCELLS
+
+  MESH_LOOP_2: DO NM=1,NMESHES
+     CALL POINT_TO_MESH(NM)
+     PARTICLE_LOOP3: DO I=1,NLP !Write particle information to binary file
+       LP=>PARTICLE(I)
+       IF(LP%VEG_N_TREE_PRT_OUTPUT == NCT) THEN
+         CALL GET_IJK(LP%X,LP%Y,LP%Z,NM,XI,YJ,ZK,II,JJ,KK)
+         WRITE(8137) LP%X,LP%Y,LP%Z,PC%VEG_BULK_DENSITY,LP%VEG_VOLFRACTION
+!print'(A,1x,2I5,2A,2I5,3ES13.5)','vege create:ntree,nm,tree_name,part_id,nlp,n_voxels,x,y,z',&
+!                          nct,nm,veg_tree_name(nct),pc%id,nlp,n_veg_gridcells,lp%x,lp%y,lp%z
+       ENDIF
+     ENDDO PARTICLE_LOOP3
+  ENDDO MESH_LOOP_2 
+ 
+  ENDDO TREE_LOOP
+
+CLOSE(8137)
+
+PRINT*,'********************************************************************************'
+PRINT*,'Binary file with raised veg x,y,z,bulk density,volume fraction has been created'
+PRINT*,'Filename is '//TRIM(CHID)//'_output_veg.bin'
+PRINT*,'********************************************************************************'
+STOP
+
+END SUBROUTINE CREATE_RAISED_VEG_FILE
+
+!---------------------------------------------------------------------------
+
+SUBROUTINE INITIALIZE_RAISED_VEG_FROM_FILE_2
+!This version of the subroutine does not check for mulitiply occupied grid cells.
+!Read in, for each TREE, the TREE_NAME, number of particle classes, PART_ID, 
+!number of grid cells occupied by the tree, and the x,y,z coordinates and bulk density
+!for each grid cell
+
+USE MEMORY_FUNCTIONS, ONLY: RE_ALLOCATE_PARTICLES
+USE TRAN, ONLY: GET_IJK
+INTEGER:: ITREE,IPC,NPART_CLASS,NCELL,NM
+INTEGER:: NVOX ! number of voxels for each tree
+CHARACTER(30) :: TREE_NAME,PART_ID
+REAL(EB) :: X,Y,Z,BULK_DENSITY,GRID_CELL_VOLUME_FRACTION
+LOGICAL  :: CELL_TAKEN
+
+IF (VEG_INPUT_FILENAME == 'null') RETURN
+
+OPEN(UNIT=9137,FILE=VEG_INPUT_FILENAME,FORM='UNFORMATTED',STATUS='OLD')
+
+TREE_LOOP: DO ITREE = 1, N_TREES 
+   IF (N_TREE_IN_FILE(ITREE) == 0) CYCLE TREE_LOOP
+   READ(9137) TREE_NAME
+   WRITE(*,*) 'Tree Name=',TREE_NAME
+!  READ(9137) NPART_CLASS
+!  WRITE(*,*) 'Number of particle classes for this tree= ',NPART_CLASS !this is currently not used
+   READ(9137) PART_ID
+   WRITE(*,*) 'PART_ID= ',PART_ID
+   READ(9137) NVOX
+   WRITE(*,*) 'NUMBER OF VOXELS= ',NVOX
+!    allocate(bds(nvox))
+!    read(9137) bds
+
+     NCELL_LOOP: DO NCELL=1,NVOX
+       READ(9137) X,Y,Z,BULK_DENSITY
+!        CALL GET_IJK(X,Y,Z,NM,XI,YJ,ZK,II,JJ,KK)
+       DO_MESH: DO NM=1,NMESHES
+         IF (PROCESS(NM) /= MYID) CYCLE
+         CALL POINT_TO_MESH(NM)
+         IPC = TREE_PARTICLE_CLASS(ITREE)
+         PC=>PARTICLE_CLASS(IPC)
+         IF(MESHES(NM)%XS < X .AND. X < MESHES(NM)%XF .AND. &
+            MESHES(NM)%YS < Y .AND. Y < MESHES(NM)%YF .AND. &
+            MESHES(NM)%ZS < Z .AND. Z < MESHES(NM)%ZF) THEN 
+            TREE_MESH(NM) = .TRUE.
+            NLP  = NLP + 1
+            IF (NLP>NLPDIM) THEN
+             CALL RE_ALLOCATE_PARTICLES(1,NM,0,1000)
+             PARTICLE=>MESHES(NM)%PARTICLE
+            ENDIF
+            LP=>PARTICLE(NLP)
+            LP%X = X
+            LP%Y = Y
+            LP%Z = Z 
+            LP%VEG_VOLFRACTION = GRID_CELL_VOLUME_FRACTION
+            LP%SHOW = .TRUE.
+            LP%T = 0.
+            LP%U = 0.
+            LP%V = 0.
+            LP%W = 0.
+            LP%IOR = 0 !airborne static PARTICLE
+            IF (PC%DRAG_LAW == SPHERE_DRAG)   LP%R =  3./PC%VEG_SV
+            IF (PC%DRAG_LAW == CYLINDER_DRAG) LP%R =  2./PC%VEG_SV 
+            LP%VEG_FUEL_MASS     = BULK_DENSITY
+            LP%VEG_MOIST_MASS    = PC%VEG_MOISTURE*LP%VEG_FUEL_MASS
+            LP%VEG_CHAR_MASS     = 0.0_EB
+            LP%VEG_ASH_MASS      = 0.0_EB
+            LP%VEG_PACKING_RATIO = BULK_DENSITY/PC%VEG_DENSITY 
+            LP%VEG_SV            = PC%VEG_SV 
+            LP%VEG_KAPPA         = 0.25*PC%VEG_SV*PC%VEG_BULK_DENSITY/PC%VEG_DENSITY
+            LP%TMP               = PC%VEG_INITIAL_TEMPERATURE
+            LP%VEG_IGNITED       = .FALSE.
+            LP%IGNITOR           = .FALSE.
+            LP%VEG_EMISS         = 4._EB*SIGMA*LP%VEG_KAPPA*LP%TMP**4
+            LP%VEG_DIVQR         = 0.0_EB
+            LP%VEG_N_TREE_PRT_OUTPUT = N_TREE_FOR_PRT_FILE(ITREE)
+            LP%PWT               = 1._EB 
+            LP%CLASS             = IPC
+            LP%VEG_VOLFRACTION   = 1._EB
+            PARTICLE_TAG         = PARTICLE_TAG + NMESHES
+            LP%TAG               = PARTICLE_TAG
+!print*,'veg:nm,itree,nlp,ipc,lp% class,x,y,z,rhob,tree_mesh(nm)',nm,itree,nlp,ipc,lp%class,lp%x,lp%y,lp%z,bulk_density,tree_mesh(nm)
+         ENDIF
+       ENDDO DO_MESH
+!print*,'vege:tree_mesh(:)',tree_mesh
+     ENDDO NCELL_LOOP
+ENDDO TREE_LOOP
+
+CLOSE(9137)
+
+END SUBROUTINE INITIALIZE_RAISED_VEG_FROM_FILE_2
  
 
 SUBROUTINE INITIALIZE_RAISED_VEG(NM)
@@ -51,8 +303,16 @@ INTEGER N_CFCR_TREE,N_FRUSTUM_TREE,N_RECT_TREE,N_RING_TREE,N_IGN
 INTEGER I,II,I_OUTER_RING,JJ,KK,K_BOTTOM_RING
 INTEGER, INTENT(IN) :: NM
 
+!The following are needed for outputting a binary veg file
+INTEGER N_VEG_GRIDCELLS 
+!CHARACTER(30) :: PART_ID
+!CHARACTER(1)  :: CNMESH_1
+!CHARACTER(2)  :: CNMESH_2
+!CHARACTER(3)  :: CNMESH_3
+
+
 !IF (.NOT. TREE) RETURN !Exit if there are no trees anywhere
-IF (.NOT. TREE_MESH(NM)) RETURN !Exit routine if no raised veg in mesh
+!IF (.NOT. TREE_MESH(NM)) RETURN !Exit routine if no raised veg in mesh
 IF (EVACUATION_ONLY(NM)) RETURN  ! Don't waste time if an evac mesh
 CALL POINT_TO_MESH(NM)
 
@@ -69,7 +329,7 @@ CALL ChkMemErr('VEGE','IJK_VEGOUT',IZERO)
 ! OPEN(9998,FILE='diagnostics.out',STATUS='REPLACE')
 !ENDIF
 
-TREE_MESH(NM)          = .FALSE. 
+!TREE_MESH(NM)          = .FALSE. 
 CONE_TREE_PRESENT      = .FALSE.
 FRUSTUM_TREE_PRESENT   = .FALSE.
 CYLINDER_TREE_PRESENT  = .FALSE.
@@ -79,6 +339,7 @@ IJK_VEGOUT             = 0
 
 TREE_LOOP: DO NCT=1,N_TREES
 
+   IF (N_TREE_IN_FILE(NCT) /= 0) CYCLE TREE_LOOP
    VEG_PRESENT_FLAG = .FALSE. ; CELL_TAKEN_FLAG = .FALSE.
    IPC = TREE_PARTICLE_CLASS(NCT)
    PC=>PARTICLE_CLASS(IPC)
@@ -122,8 +383,8 @@ TREE_LOOP: DO NCT=1,N_TREES
          ENDIF
          LP=>PARTICLE(NLP)
          LP%VEG_VOLFRACTION = 1._EB
-!        LP%TAG = PARTICLE_TAG
-         LP%TAG = NCT !added to assign a number to each &TREE with OUTPUT=T
+         LP%TAG = PARTICLE_TAG
+!        LP%TAG = NCT !added to assign a number to each &TREE with OUTPUT=T
          LP%X = REAL(NXB,EB)
          LP%Y = REAL(NYB,EB)
          LP%Z = REAL(NZB,EB)
@@ -182,8 +443,8 @@ TREE_LOOP: DO NCT=1,N_TREES
          ENDIF
          LP=>PARTICLE(NLP)
          LP%VEG_VOLFRACTION = 1._EB
-!        LP%TAG = PARTICLE_TAG
-         LP%TAG = NCT !added to assign a number to each &TREE with OUTPUT=T
+         LP%TAG = PARTICLE_TAG
+!        LP%TAG = NCT !added to assign a number to each &TREE with OUTPUT=T
          LP%X = REAL(NXB,EB)
          LP%Y = REAL(NYB,EB)
          LP%Z = REAL(NZB,EB)
@@ -232,8 +493,8 @@ TREE_LOOP: DO NCT=1,N_TREES
          ENDIF
          LP=>PARTICLE(NLP)
          LP%VEG_VOLFRACTION = 1._EB
-!        LP%TAG = PARTICLE_TAG
-         LP%TAG = NCT !added to assign a number to each &TREE with OUTPUT=T
+         LP%TAG = PARTICLE_TAG
+!        LP%TAG = NCT !added to assign a number to each &TREE with OUTPUT=T
          LP%X = REAL(NXB,EB)
          LP%Y = REAL(NYB,EB)
          LP%Z = REAL(NZB,EB)
@@ -292,8 +553,8 @@ TREE_LOOP: DO NCT=1,N_TREES
                 ENDIF
                 LP=>PARTICLE(NLP)
                 LP%VEG_VOLFRACTION = 1._EB
-!               LP%TAG = PARTICLE_TAG
-                LP%TAG = NCT !added to assign a number to each &TREE with OUTPUT=T
+                LP%TAG = PARTICLE_TAG
+!               LP%TAG = NCT !added to assign a number to each &TREE with OUTPUT=T
                 LP%X = REAL(NXB,EB)
                 LP%Y = REAL(NYB,EB)
                 LP%Z = REAL(NZB,EB)
@@ -412,8 +673,8 @@ TREE_LOOP: DO NCT=1,N_TREES
              ENDIF
              LP=>PARTICLE(NLP)
              LP%VEG_VOLFRACTION = 1._EB
-!            LP%TAG = PARTICLE_TAG
-             LP%TAG = NCT !added to assign a number to each &TREE with OUTPUT=T
+             LP%TAG = PARTICLE_TAG
+!            LP%TAG = NCT !added to assign a number to each &TREE with OUTPUT=T
              LP%X = REAL(NXB,EB)
              LP%Y = REAL(NYB,EB)
              LP%Z = REAL(NZB,EB)
@@ -435,6 +696,7 @@ TREE_LOOP: DO NCT=1,N_TREES
    REP_VEG_ELEMS: DO I=NLP-NLP_VEG_FUEL+1,NLP
     LP=>PARTICLE(I)
     LP%IGNITOR = .FALSE.
+!print*,'vege not from file:I,NCT,NM',I,NCT,NM
     DO NZB=0,KBAR
      DO NXB=0,IBAR
       GRID_LOOP: DO NYB=0,JBAR
@@ -472,6 +734,8 @@ TREE_LOOP: DO NCT=1,N_TREES
         LP%VEG_KAPPA = 0.25*PC%VEG_SV*PC%VEG_BULK_DENSITY/PC%VEG_DENSITY
         LP%TMP = PC%VEG_INITIAL_TEMPERATURE
         LP%VEG_IGNITED = .FALSE.
+        LP%VEG_N_TREE_PRT_OUTPUT = N_TREE_FOR_PRT_FILE(NCT) !number of tree in .prt files
+        LP%VEG_N_TREE_OUTPUT     = N_TREE_OUT(NCT) !array index for average tree stats files
         IF(IGN_ELEMS(NCT)) THEN
           IGNITOR_PRESENT = .TRUE.
           LP%TMP = TMPA
@@ -484,15 +748,15 @@ TREE_LOOP: DO NCT=1,N_TREES
         ENDIF
         LP%VEG_EMISS = 4._EB*SIGMA*LP%VEG_KAPPA*LP%TMP**4
         LP%VEG_DIVQR = 0.0_EB
-        LP%VEG_N_TREE_OUTPUT = 0
+!       LP%VEG_N_TREE_OUTPUT = 0
 !       TREE_MESH_OUT(NM) = .FALSE.
-        IF (N_TREE_OUT(NCT) /= 0) THEN
-         CALL GET_IJK(LP%X,LP%Y,LP%Z,NM,XI,YJ,ZK,II,JJ,KK)
-         IJK_VEGOUT(II,JJ,KK) = 1
-         LP%VEG_N_TREE_OUTPUT = N_TREE_OUT(NCT)
-         LP%IOR = 0 !airborne static PARTICLE
+!       IF (N_TREE_OUT(NCT) /= 0) THEN
+!        CALL GET_IJK(LP%X,LP%Y,LP%Z,NM,XI,YJ,ZK,II,JJ,KK)
+!        IJK_VEGOUT(II,JJ,KK) = 1
+!        LP%VEG_N_TREE_OUTPUT = N_TREE_OUT(NCT)
+!        LP%IOR = 0 !airborne static PARTICLE
 !        TREE_MESH_OUT(NM) = .TRUE.
-        ENDIF
+!       ENDIF
         CYCLE REP_VEG_ELEMS
        ENDIF
       ENDDO GRID_LOOP
@@ -500,14 +764,13 @@ TREE_LOOP: DO NCT=1,N_TREES
     ENDDO
    ENDDO REP_VEG_ELEMS
 !
-!print*,'in vege 2: NM,NCT,N_TREE_OUT(NCT)', NM,NCT,N_TREE_OUT(NCT)
-!print*,'in vege 2: NLP,NM,TREE_MESH_OUT(NM),NCT',NLP,NM,TREE_MESH_OUT(NM),NCT
+!print*,'in vege 2: NM,NCT,NLP,N_TREE_OUT(NCT),TREE_MESH_OUT(NM)',NM,NCT,NLP,N_TREE_OUT(NCT),TREE_MESH_OUT(NM)
 ENDDO TREE_LOOP
 
 CALL REMOVE_PARTICLES(0._EB,NM)
 
-!Fill veg output arrays with initial values
-IF (N_TREES_OUT > 0) THEN 
+!Fill veg output arrays with initial values of tree averaged quanitities 
+IF (N_TREES_OUTPUT_DATA > 0) THEN 
   CALL POINT_TO_MESH(NM)
   TREE_OUTPUT_DATA(:,:,NM) = 0._EB
   PARTICLE_LOOP: DO I=1,NLP
@@ -707,7 +970,7 @@ TMP_CHAR_MAX = 1300._EB !K
 !PR_AIR = 0.7_EB     
 
 ! Working arrays
-IF(N_TREES_OUT > 0) TREE_OUTPUT_DATA(:,:,NM) = 0._EB !for output of veg data
+IF(N_TREES_OUTPUT_DATA > 0) TREE_OUTPUT_DATA(:,:,NM) = 0._EB !for output of veg data
 !DMPVDT_FM_VEG  = 0.0_EB
 
 !Clear arrays and scalars
