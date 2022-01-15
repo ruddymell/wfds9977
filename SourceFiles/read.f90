@@ -1652,7 +1652,7 @@ END SELECT
 
 IF (AL2O3) RHO_SOOT = 4000._EB
 
-! Level set based model of firespread in surface vegetation
+! Level set based model of firespread in surface vegetation 
 
 IF(VEG_LEVEL_SET_COUPLED) THEN
   VEG_LEVEL_SET = .TRUE.
