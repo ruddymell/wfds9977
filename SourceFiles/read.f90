@@ -75,7 +75,7 @@ IF (FN_INPUT(1:1)==' ') THEN
 !     WRITE(LU_ERR,'(/A)')  "WFDS9977; based on subversion 9977 (2012) of FDS"
       WRITE(LU_ERR,'(A,I4)') "SVN Revision Number: ",SVN_REVISION_NUMBER
 !     COMPILE_DATE = 'September 20, 2019'
-      WRITE(LU_ERR,'(A,A)') "Source Date: ",'January 16, 2022'
+      WRITE(LU_ERR,'(A,A)') "Source Date: ",'February 3, 2022'
       WRITE(LU_ERR,'(/A)')  "Consult FDS Users Guide Chapter, Running FDS, for further instructions."
       WRITE(LU_ERR,'(/A)')  "Consult https://sites.google.com/site/wuifiresfiremodels, for WFDS information."
       WRITE(LU_ERR,'(/A)')  "Hit Enter to Escape..."
