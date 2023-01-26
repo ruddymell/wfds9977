@@ -61,6 +61,7 @@ IF (VEG_INPUT_FILENAME == 'null') RETURN
 
 !print*,'read in binary file, total n_trees, nm = ',n_trees,nm
 
+
    CALL POINT_TO_MESH(NM)
    ALLOCATE(VEG_PRESENT_FLAG(0:IBP1,0:JBP1,0:KBP1))
    CALL ChkMemErr('VEGE','VEG_PRESENT_FLAG',IZERO)
